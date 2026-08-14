@@ -1,0 +1,84 @@
+{
+  "name": "@luzhengyangtx/dsh-telegram-duty",
+  "description": "Telegram duty gateway for DeepSeek Harness: long-poll Telegram into a dedicated duty session, global approval forwarding while on duty, and a local/duty watch toggle.",
+  "version": "0.1.0",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "telegram",
+    "gateway",
+    "bot",
+    "agent",
+    "approval"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luzhengyangtx/dsh-telegram-duty.git"
+  },
+  "bugs": {
+    "url": "https://github.com/luzhengyangtx/dsh-telegram-duty/issues"
+  },
+  "homepage": "https://github.com/luzhengyangtx/dsh-telegram-duty#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json --force"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-agent-default-model": "workspace:^",
+    "@deepseek-ai/dsh-agent-presets": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^",
+    "@deepseek-ai/dsh-settings": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-user-approval": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-agent": "workspace:^",
+    "@deepseek-ai/dsh-agent-default-model": "workspace:^",
+    "@deepseek-ai/dsh-agent-presets": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^",
+    "@deepseek-ai/dsh-settings": "workspace:^",
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-user-approval": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

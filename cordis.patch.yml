@@ -1,0 +1,6 @@
+# dsh-telegram-duty bundle patch: mounts the Telegram duty gateway plugin row.
+# Runtime defaults live at the plugin's config boundary; users override them in
+# their profile patch row with the same id (last write wins per row).
+- insert:
+    - id: telegram-duty
+      name: '@luzhengyangtx/dsh-telegram-duty'
