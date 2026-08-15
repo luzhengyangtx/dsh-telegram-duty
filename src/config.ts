@@ -12,6 +12,21 @@ import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 /** Settings document namespace owned by this plugin. */
 export const TELEGRAM_DUTY_NAMESPACE = settingsNamespace('telegram-duty')
 
+/**
+ * State-marker namespaces: the web settings wire is allowlisted, so the
+ * browser half cannot READ this plugin's configuration namespace. Instead the
+ * host writes a timestamp into the marker namespace matching the current watch
+ * mode; the forwarded `settings/document-updated` event carries the namespace
+ * name verbatim, and the banner derives the mode from WHICH marker moved.
+ */
+export const DUTY_STATE_ON_NAMESPACE = settingsNamespace('telegram-duty-on')
+export const DUTY_STATE_OFF_NAMESPACE = settingsNamespace('telegram-duty-off')
+
+/** Trivial schema for the state-marker sections. */
+export const StateMarkerConfig: Schema<{ n?: number }> = z.object({
+  n: z.number().default(0),
+})
+
 /** User-facing configuration; every field defaults at the schema boundary. */
 export interface TelegramDutyConfig {
   /** Bot token. Empty means "read from credentialsFile" when one is set. */

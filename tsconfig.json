@@ -45,6 +45,9 @@
       "path": "../../preset/agent-presets"
     },
     {
+      "path": "../commands"
+    },
+    {
       "path": "../user-approval"
     }
   ]

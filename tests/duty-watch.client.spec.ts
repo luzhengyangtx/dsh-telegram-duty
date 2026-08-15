@@ -1,91 +1,38 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { DutyWatchController } from '../src/client/settings-store.ts'
-import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
-
-function fakeApi(responses: {
-  describe?: (input: unknown) => Promise<{ result: { ok: boolean; error?: { message: string }; value: { namespaces: unknown[]; writable: boolean } } }>
-  mutate?: (input: unknown) => Promise<{ result: { ok: boolean; error?: { message: string }; value: unknown } }>
-}): Pick<IApiClient, 'settings'> {
-  return {
-    settings: {
-      describe: responses.describe ?? (async () => ({
-        result: { ok: true, value: { namespaces: [], writable: true } },
-      })),
-      mutate: responses.mutate ?? (async () => ({ result: { ok: true, value: {} } })),
-    },
-  } as unknown as Pick<IApiClient, 'settings'>
-}
-
-function dutyNamespace(watchMode: string, language = 'zh', revision = 3): unknown {
-  return {
-    ns: 'telegram-duty',
-    revision,
-    value: { watchMode, language },
-    schema: {},
-  }
-}
 
 describe('DutyWatchController', () => {
-  it('loads duty mode and language from the namespace', async () => {
-    const api = fakeApi({
-      describe: async () => ({
-        result: {
-          ok: true,
-          value: { namespaces: [dutyNamespace('duty', 'zh')], writable: true },
-        },
-      }),
-    })
-    const controller = new DutyWatchController(api)
-    await controller.load()
-    expect(controller.store.getSnapshot()).toMatchObject({ status: 'ready', mode: 'duty', language: 'zh' })
+  it('starts idle in local mode', () => {
+    const controller = new DutyWatchController()
+    expect(controller.store.getSnapshot()).toEqual({ mode: 'local', status: 'idle' })
   })
 
-  it('reports unavailable when the namespace is absent', async () => {
-    const controller = new DutyWatchController(fakeApi({}))
-    await controller.load()
-    expect(controller.store.getSnapshot()).toMatchObject({ status: 'unavailable', mode: 'local' })
+  it('learns duty from the on-marker namespace', () => {
+    const controller = new DutyWatchController()
+    controller.onNamespace('telegram-duty-on')
+    expect(controller.store.getSnapshot()).toEqual({ mode: 'duty', status: 'ready' })
   })
 
-  it('reports an error when describe fails', async () => {
-    const api = fakeApi({
-      describe: async () => ({ result: { ok: false, error: { message: 'boom' }, value: { namespaces: [], writable: false } } }),
-    })
-    const controller = new DutyWatchController(api)
-    await controller.load()
-    expect(controller.store.getSnapshot()).toMatchObject({ status: 'error', error: 'boom' })
+  it('learns local from the off-marker namespace', () => {
+    const controller = new DutyWatchController()
+    controller.onNamespace('telegram-duty-on')
+    controller.onNamespace('telegram-duty-off')
+    expect(controller.store.getSnapshot()).toEqual({ mode: 'local', status: 'ready' })
   })
 
-  it('switchBack mutates watchMode to local with the revision', async () => {
-    const mutate = vi.fn(async () => ({
-      result: {
-        ok: true,
-        value: dutyNamespace('local', 'zh', 4),
-      },
-    }))
-    const api = fakeApi({
-      describe: async () => ({
-        result: {
-          ok: true,
-          value: { namespaces: [dutyNamespace('duty', 'zh', 3)], writable: true },
-        },
-      }),
-      mutate,
-    })
-    const controller = new DutyWatchController(api)
-    await controller.load()
-    await controller.switchBack()
-    expect(mutate).toHaveBeenCalledWith({
-      ns: 'telegram-duty',
-      ops: [{ op: 'set', path: ['watchMode'], value: 'local' }],
-      expectedRevision: 3,
-    })
-    expect(controller.store.getSnapshot()).toMatchObject({ status: 'ready', mode: 'local' })
+  it('ignores unrelated namespaces', () => {
+    const controller = new DutyWatchController()
+    controller.onNamespace('telegram-duty')
+    controller.onNamespace('ui-theme')
+    expect(controller.store.getSnapshot()).toEqual({ mode: 'local', status: 'idle' })
   })
 
-  it('switchBack without a loaded view is a no-op', async () => {
-    const controller = new DutyWatchController(fakeApi({}))
-    await controller.switchBack()
-    expect(controller.store.getSnapshot().status).toBe('idle')
+  it('is idempotent for repeated markers', () => {
+    const controller = new DutyWatchController()
+    controller.onNamespace('telegram-duty-on')
+    const first = controller.store.getSnapshot()
+    controller.onNamespace('telegram-duty-on')
+    expect(controller.store.getSnapshot()).toBe(first)
   })
 })

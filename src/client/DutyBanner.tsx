@@ -1,13 +1,20 @@
 /**
  * Duty banner, browser half: while the host plugin is in duty mode, a frame
  * overlay shows "approvals are on your phone" with a one-click switch back
- * to local mode. Rendered through the shell.overlay slot.
+ * to local mode. Rendered through the shell.overlay slot; text follows the
+ * web UI locale.
  */
 
-import { useEffect } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DutyWatchState } from './settings-store.ts'
+
+/** Banner locale dictionary declared into the shared LocaleNamespaceMap. */
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    'telegram-duty.banner': 'title' | 'action'
+  }
+}
 
 /** Registration-side business face handed to the banner component. */
 export interface DutyBannerInjected {
@@ -15,21 +22,15 @@ export interface DutyBannerInjected {
     /** Duty-watch snapshot bound by the renderer as useDuty. */
     duty: SnapshotStore<DutyWatchState>
   }
-  /** Load the snapshot when the banner first renders. */
-  load: () => Promise<void>
-  /** Persist watchMode=local. */
-  switchBack: () => Promise<void>
+  /** Persist watchMode=local through the host command. */
+  switchBack: () => void
 }
 
 /** Full component props. */
 export type DutyBannerProps =
   PropsRuntime<'shell.overlay'>
+  & PropsLocale<'telegram-duty.banner'>
   & InjectFace<DutyBannerInjected>
-
-const TEXTS = {
-  zh: { title: '审批已转到手机', action: '切回本地', saving: '切换中…' },
-  en: { title: 'Approvals are on your phone', action: 'Back to local', saving: 'Switching…' },
-} as const
 
 const bannerStyle: React.CSSProperties = {
   position: 'fixed',
@@ -59,33 +60,26 @@ const buttonStyle: React.CSSProperties = {
 }
 
 /**
- * Render the duty-mode banner, or null while local/unavailable.
+ * Render the duty-mode banner while the latest state marker says duty;
+ * nothing otherwise.
  * @param props - composed slot props.
  */
-export function DutyBanner({ useDuty, load, switchBack }: DutyBannerProps) {
+export function DutyBanner({ useDuty, switchBack, t }: DutyBannerProps) {
   const state = useDuty(snapshot => snapshot)
 
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  if (state.status === 'unavailable' || state.status === 'error') return null
-  if (state.mode !== 'duty') return null
-  const t = TEXTS[state.language] ?? TEXTS.en
-  const busy = state.status === 'saving'
+  if (state.status !== 'ready' || state.mode !== 'duty') return null
 
   return (
     <div style={bannerStyle}>
-      <span>🔔 {t.title}</span>
+      <span>🔔 {t('title')}</span>
       <button
         type="button"
-        disabled={busy}
         style={buttonStyle}
         onClick={() => {
-          void switchBack()
+          switchBack()
         }}
       >
-        {busy ? t.saving : t.action}
+        {t('action')}
       </button>
     </div>
   )

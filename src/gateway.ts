@@ -25,6 +25,8 @@ export interface GatewayDeps {
   runtime: TelegramDutyConfig
   client: TelegramClient
   settings: SettingsScope<TelegramDutyConfig>
+  stateOn: SettingsScope<{ n?: number }>
+  stateOff: SettingsScope<{ n?: number }>
 }
 
 /** All gateway state for one plugin run. */
@@ -33,6 +35,8 @@ export class Gateway {
   private readonly runtime: TelegramDutyConfig
   private readonly client: TelegramClient
   private readonly settings: SettingsScope<TelegramDutyConfig>
+  private readonly stateOn: SettingsScope<{ n?: number }>
+  private readonly stateOff: SettingsScope<{ n?: number }>
   private readonly duty: DutySession
   private readonly approvals: ApprovalManager
   private readonly asks: TelegramAskManager
@@ -46,6 +50,8 @@ export class Gateway {
     this.runtime = deps.runtime
     this.client = deps.client
     this.settings = deps.settings
+    this.stateOn = deps.stateOn
+    this.stateOff = deps.stateOff
     this.mode = deps.settings.get().watchMode ?? 'local'
     this.strings = stringsFor(deps.settings.get().language ?? 'en')
     this.duty = new DutySession(deps.ctx, {
@@ -99,6 +105,38 @@ export class Gateway {
 
   start(): void {
     this.poller.start()
+    void this.refreshStateMarker()
+  }
+
+  /**
+   * Publish the current mode through the marker namespace whose name the
+   * browser half reads from the forwarded settings event.
+   */
+  async refreshStateMarker(): Promise<void> {
+    await this.pushStateMarker(this.mode)
+  }
+
+  /** telegram_ask tool body: push a question to the phone and wait. */
+  async askUser(question: string, options: string[], signal?: AbortSignal): Promise<TelegramAskOutcome> {
+    return await this.asks.ask({
+      question,
+      options,
+      ...(signal !== undefined ? { signal } : {}),
+    })
+  }
+
+  /** Command body: switch duty back to local (and notify the phone). */
+  async switchToLocal(): Promise<void> {
+    await this.setMode('local', true)
+  }
+
+  private async pushStateMarker(mode: 'local' | 'duty'): Promise<void> {
+    const scope = mode === 'duty' ? this.stateOn : this.stateOff
+    try {
+      await scope.update({ n: Date.now() })
+    } catch (error) {
+      this.ctx.logger.warn('telegram-duty', `state marker write failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   async stop(): Promise<void> {
@@ -109,15 +147,6 @@ export class Gateway {
     // the blocked duty turn) before tearing the client down.
     await Promise.allSettled([...this.inflight])
     this.client.close()
-  }
-
-  /** telegram_ask tool body: push a question to the phone and wait. */
-  async askUser(question: string, options: string[], signal?: AbortSignal): Promise<TelegramAskOutcome> {
-    return await this.asks.ask({
-      question,
-      options,
-      ...(signal !== undefined ? { signal } : {}),
-    })
   }
 
   /** approval/request answerer: take over while on duty, else defer to web. */
@@ -228,6 +257,7 @@ export class Gateway {
     } catch (error) {
       this.ctx.logger.warn('telegram-duty', `persisting watchMode failed: ${error instanceof Error ? error.message : String(error)}`)
     }
+    await this.pushStateMarker(mode)
     if (notify) await this.sendChunked(mode === 'duty' ? this.strings.dutyOn : this.strings.dutyOff)
   }
 

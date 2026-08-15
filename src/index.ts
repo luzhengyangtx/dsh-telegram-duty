@@ -14,16 +14,20 @@ import * as path from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
+import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
-import { Config, TELEGRAM_DUTY_NAMESPACE, resolveConfig, type CredentialsFile, type TelegramDutyConfig } from './config.ts'
+import {
+  Config, DUTY_STATE_OFF_NAMESPACE, DUTY_STATE_ON_NAMESPACE, StateMarkerConfig,
+  TELEGRAM_DUTY_NAMESPACE, resolveConfig, type CredentialsFile, type TelegramDutyConfig,
+} from './config.ts'
 import { TelegramClient } from './telegram.ts'
 import { Gateway } from './gateway.ts'
 import { telegramAskTool } from './ask-tool.ts'
 
 export const name = 'telegram-duty'
-export const inject = ['settings', 'agents', 'agentDefaultModel', 'tools']
+export const inject = ['settings', 'agents', 'agentDefaultModel', 'tools', 'commands']
 
 /** Schema values win; empty token/chatId fall back to the credentials file. */
 export function resolveRuntime(config: TelegramDutyConfig): TelegramDutyConfig {
@@ -83,6 +87,9 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
       resolveConfig(value)
     },
   })
+  // State-marker namespaces (browser-visible mode channel; see config.ts).
+  const stateOn = ctx.settings.register(DUTY_STATE_ON_NAMESPACE, StateMarkerConfig, { applies: 'live' })
+  const stateOff = ctx.settings.register(DUTY_STATE_OFF_NAMESPACE, StateMarkerConfig, { applies: 'live' })
   const runtime = effectiveRuntime(resolveRuntime(settings.get()))
 
   if (!runtime.token) {
@@ -110,12 +117,30 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
   }
 
   const client = new TelegramClient(runtime.token, runtime.proxy ?? '')
-  const gateway = new Gateway({ ctx, runtime, client, settings })
+  const gateway = new Gateway({ ctx, runtime, client, settings, stateOn, stateOff })
 
   ctx.effect(function* () {
     ctx.on('approval/request', gateway.onApprovalRequest, { prepend: true })
     ctx.on('session/event', gateway.onSessionEvent)
     ctx.tools.register(telegramAskTool(gateway))
+    ctx.commands.register({
+      name: 'duty-mode',
+      description: 'Show the Telegram duty state (local / duty)',
+      recordInput: false,
+      handler: async () => {
+        await gateway.refreshStateMarker()
+        return { kind: 'success' }
+      },
+    })
+    ctx.commands.register({
+      name: 'duty-mode-local',
+      description: 'Switch the Telegram duty back to local mode',
+      recordInput: false,
+      handler: async () => {
+        await gateway.switchToLocal()
+        return { kind: 'success' }
+      },
+    })
     gateway.start()
     yield async () => {
       await gateway.stop()
