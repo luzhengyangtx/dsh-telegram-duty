@@ -12,7 +12,7 @@ import type { DutyWatchState } from './settings-store.ts'
 /** Banner locale dictionary declared into the shared LocaleNamespaceMap. */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    'telegram-duty.banner': 'title' | 'action'
+    'telegram-duty.banner': 'title' | 'action' | 'sidebarDuty' | 'sidebarError'
   }
 }
 
@@ -32,7 +32,12 @@ export type DutyBannerProps =
   & PropsLocale<'telegram-duty.banner'>
   & InjectFace<DutyBannerInjected>
 
-const bannerStyle: React.CSSProperties = {
+/**
+ * Banner styles (exported so the client test can pin the v0.4.0 size bump:
+ * position and colors unchanged, one notch larger than the original 13px /
+ * `8px 14px`).
+ */
+export const bannerStyle: React.CSSProperties = {
   position: 'fixed',
   top: 12,
   left: '50%',
@@ -41,22 +46,22 @@ const bannerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 12,
-  padding: '8px 14px',
+  padding: '10px 16px',
   background: '#1f2937',
   color: '#fff',
   borderRadius: 999,
-  fontSize: 13,
+  fontSize: 14,
   boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
 }
 
-const buttonStyle: React.CSSProperties = {
+export const buttonStyle: React.CSSProperties = {
   border: '1px solid rgba(255, 255, 255, 0.4)',
   background: 'transparent',
   color: '#fff',
   borderRadius: 999,
-  padding: '3px 10px',
+  padding: '4px 12px',
   cursor: 'pointer',
-  fontSize: 12,
+  fontSize: 13,
 }
 
 /**

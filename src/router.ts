@@ -1,10 +1,11 @@
 /**
- * Pure text helpers for the Telegram message router: command recognition and
- * reply chunking under Telegram's 4096-char message limit.
+ * Pure text helpers for the Telegram message router: command recognition,
+ * targeted-message prefix parsing, session-button callback parsing, and reply
+ * chunking under Telegram's 4096-char message limit.
  * @module @luzhengyangtx/dsh-telegram-duty/router
  */
 
-export type DutyCommand = 'away' | 'back' | 'help' | null
+export type DutyCommand = 'away' | 'back' | 'help' | 'sessions' | 'duty' | 'unblock' | null
 
 /** Recognize the plugin's own slash commands (exact match, trimmed). */
 export function parseCommand(text: string): DutyCommand {
@@ -12,7 +13,44 @@ export function parseCommand(text: string): DutyCommand {
   if (t === '/away' || t === '/a') return 'away'
   if (t === '/back' || t === '/b') return 'back'
   if (t === '/help' || t === '/h' || t === '/start') return 'help'
+  if (t === '/sessions' || t === '/s') return 'sessions'
+  if (t === '/duty' || t === '/d') return 'duty'
+  if (t === '/unblock' || t === '/u') return 'unblock'
   return null
+}
+
+export interface TargetPrefix {
+  /** 1-based snapshot index from the most recent /sessions list. */
+  index: number
+  /** Message text after the prefix (never empty). */
+  rest: string
+}
+
+/**
+ * Parse a `#N message` prefix used to send one message to a specific session
+ * without changing the default route. `#N` alone (no message text) is not a
+ * valid prefix; the gateway reports a dedicated hint for that shape.
+ */
+export function parseTargetPrefix(text: string): TargetPrefix | null {
+  const match = /^#\s*(\d+)\s+(.+)$/s.exec(text.trim())
+  if (match === null) return null
+  const index = Number(match[1])
+  if (!Number.isSafeInteger(index) || index < 1) return null
+  return { index, rest: (match[2] ?? '').trim() }
+}
+
+/** True for a bare `#N` with no message content (needs a dedicated hint). */
+export function isBareTargetPrefix(text: string): boolean {
+  return /^#\s*\d+\s*$/.test(text.trim())
+}
+
+/** Parse a /sessions button payload like `sess:3` into its snapshot index. */
+export function parseSessionCallback(data: string): { index: number } | null {
+  const match = /^sess:(\d+)$/.exec(data)
+  if (match === null) return null
+  const index = Number(match[1])
+  if (!Number.isSafeInteger(index) || index < 1) return null
+  return { index }
 }
 
 /**

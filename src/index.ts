@@ -16,6 +16,7 @@ import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import {
@@ -25,6 +26,9 @@ import {
 import { TelegramClient } from './telegram.ts'
 import { Gateway } from './gateway.ts'
 import { telegramAskTool } from './ask-tool.ts'
+import { telegramNotifyTool } from './notify-tool.ts'
+import { telegramDutyProjection } from './projection.ts'
+import { stringsFor } from './i18n.ts'
 
 export const name = 'telegram-duty'
 export const inject = ['settings', 'agents', 'agentDefaultModel', 'tools', 'commands']
@@ -123,6 +127,7 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
     ctx.on('approval/request', gateway.onApprovalRequest, { prepend: true })
     ctx.on('session/event', gateway.onSessionEvent)
     ctx.tools.register(telegramAskTool(gateway))
+    ctx.tools.register(telegramNotifyTool(gateway))
     ctx.commands.register({
       name: 'duty-mode',
       description: 'Show the Telegram duty state (local / duty)',
@@ -141,11 +146,41 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
         return { kind: 'success' }
       },
     })
+    ctx.commands.register({
+      name: 'duty-session',
+      description: 'Attach the Telegram duty session (sidebar button fallback)',
+      recordInput: false,
+      handler: async () => {
+        const result = await gateway.ensureDutyLive()
+        if (result.error !== undefined) {
+          ctx.logger.warn('telegram-duty', `duty-session command failed: ${result.error}`)
+        }
+        return { kind: 'success' }
+      },
+    })
     gateway.start()
     yield async () => {
       await gateway.stop()
     }
   }, 'telegram-duty lifecycle')
+
+  // Duty-session marker projection: surfaces `telegramDuty` in session.list
+  // so the web sidebar button can locate the duty session. The unit child
+  // activates only when a projection registry is composed.
+  ctx.inject(['sessionProjections'], (projectionCtx) => {
+    projectionCtx.sessionProjections.register(telegramDutyProjection())
+  })
+
+  // Teach every session's agent about the phone channels (proactive push +
+  // interactive questions); the section activates only when a system-prompt
+  // service is composed.
+  ctx.inject(['systemPrompt'], (promptCtx) => {
+    promptCtx.systemPrompt.context({
+      name: 'telegram-duty:phone-tools',
+      order: 115,
+      text: () => stringsFor(settings.get().language ?? 'en').promptNote,
+    })
+  })
 
   // Validate token + proxy in the background; the poller keeps retrying anyway.
   void client.getMe().then(

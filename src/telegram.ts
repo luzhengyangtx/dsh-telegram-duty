@@ -92,9 +92,9 @@ export class TelegramClient {
     this.agent = proxy === ''
       ? new https.Agent({ keepAlive: true })
       : new https.Agent({
-          keepAlive: true,
-          proxyEnv: { HTTPS_PROXY: proxy, HTTP_PROXY: proxy },
-        } as https.AgentOptions)
+        keepAlive: true,
+        proxyEnv: { HTTPS_PROXY: proxy, HTTP_PROXY: proxy },
+      } as https.AgentOptions)
   }
 
   /** Invoke one Bot API method with query-string parameters. */
@@ -136,6 +136,15 @@ export class TelegramClient {
     const params: Record<string, unknown> = { callback_query_id: queryId }
     if (text !== undefined && text !== '') params.text = text
     return this.call<boolean>('answerCallbackQuery', params, 10_000)
+  }
+
+  /**
+   * Tell Telegram the bot is doing something (e.g. 'typing'): the phone shows
+   * the "bot is typing…" animation for about 5 seconds, so callers re-send it
+   * every few seconds to keep the animation alive during long work.
+   */
+  async sendChatAction(chatId: number, action: string): Promise<TelegramResponse<boolean>> {
+    return this.call<boolean>('sendChatAction', { chat_id: chatId, action }, 10_000)
   }
 
   /** Identity check (used at startup to validate token + proxy). */

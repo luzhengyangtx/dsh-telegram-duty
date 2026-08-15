@@ -7,8 +7,8 @@ import * as https from 'node:https'
 
 function probe(name: string, options: https.AgentOptions): void {
   const agent = new https.Agent(options)
-  const symbols = Object.getOwnPropertySymbols(agent).map((s) => s.toString())
-  const proxySymbol = symbols.filter((s) => s.toLowerCase().includes('proxy'))
+  const symbols = Object.getOwnPropertySymbols(agent).map(s => s.toString())
+  const proxySymbol = symbols.filter(s => s.toLowerCase().includes('proxy'))
   console.log(name, '→ symbols mentioning proxy:', proxySymbol, '| own props:', Object.keys(agent).slice(0, 6))
   agent.destroy()
 }

@@ -29,7 +29,7 @@ for (let f = 0; f < starts.length; f++) {
   const end = starts[f + 1] ?? raw.length
   try {
     const text = zstdDecompressSync(raw.subarray(start, end)).toString('utf-8')
-    allLines.push(...text.split('\n').filter((line) => line !== ''))
+    allLines.push(...text.split('\n').filter(line => line !== ''))
   } catch (error) {
     console.log(`frame ${f} decompress failed:`, error instanceof Error ? error.message : error)
   }
@@ -41,11 +41,11 @@ for (const line of allLines.slice(-20)) {
   const type = event.type ?? '?'
   if (type === 'assistant/message') {
     const data = event.data as { message?: { content?: Array<{ type?: string; text?: string }> } }
-    const textBlocks = (data.message?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '')
+    const textBlocks = (data.message?.content ?? []).filter(b => b.type === 'text').map(b => b.text ?? '')
     console.log(`[${type}] ${textBlocks.join('').slice(0, 400)}`)
   } else if (type === 'user/message') {
     const data = event.data as { content?: Array<{ type?: string; text?: string }>; source?: { kind?: string } }
-    const textBlocks = (data.content ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '')
+    const textBlocks = (data.content ?? []).filter(b => b.type === 'text').map(b => b.text ?? '')
     console.log(`[${type}] source=${data.source?.kind} ${textBlocks.join('').slice(0, 150)}`)
   } else if (type === 'turn/end') {
     console.log(`[${type}] ${JSON.stringify(event.data)}`)

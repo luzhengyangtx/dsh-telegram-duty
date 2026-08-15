@@ -21,6 +21,9 @@
       "path": "../../client/ui-layout"
     },
     {
+      "path": "../../client/ui-sidebar"
+    },
+    {
       "path": "../../api/remotes/tsconfig.client.json"
     }
   ]

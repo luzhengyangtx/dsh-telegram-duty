@@ -33,14 +33,18 @@ Turn [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) i
 ## Features
 
 - 📱 **Task loop** — Telegram message → dedicated "duty" DSH session (its agent has the standard tool set) → final reply back to Telegram; long replies are split under Telegram's message limit.
+- ⏳ **Instant feedback** — every task message is acknowledged immediately ("📨 Received, generating…") and the phone keeps showing the "typing…" animation until the result arrives; errors report a clear "⚠️ Processing error".
+- 🎯 **Targeted sessions** — `/sessions` lists your workspace sessions (live and offline, matching the web sidebar; blank drafts are hidden) with numbered buttons: tap one to route following messages there. Prefix one message with `#N` to send just that one to session N. `/duty` returns to the default duty route. Offline sessions are woken automatically on the first targeted message.
 - 🔐 **Whitelist** — only your own chat id is served; other senders are logged and ignored.
-- ✅ **Global approval forwarding** — in *duty* mode, approval requests from **all** sessions go to your phone with **[✅ Approve] [⛔ Reject] buttons** (tap to answer; typing `3 approve / 3 reject` still works). Unanswered approvals time out to *rejected* (fail-closed, 10 minutes by default).
+- ✅ **Global approval forwarding** — in *duty* mode, approval requests from **all** sessions go to your phone with **[✅ Approve] [⛔ Reject] buttons** (tap to answer; typing `3 approve / 3 reject` still works). Unanswered approvals time out to *rejected* (fail-closed, 10 minutes by default). `/away` warns when the web UI still holds unanswered approvals, and `/unblock` cancels turns stuck on them.
 - ❓ **telegram_ask tool** — when an agent needs you to choose between options, confirm something, or supply missing information, it pushes the question to your phone with **one button per option**; the duty agent is prompted to prefer it.
+- 📣 **telegram_notify tool** — any session's agent can proactively push a message to your phone (reports, reminders, notifications), no waiting required.
 - 🔀 **Duty / local toggle**
   - Enter duty: send any phone message, send `/away`, or flip `watchMode` in the web settings.
   - Back to local: send any message in the web UI, or send `/back`.
   - In local mode approvals stay in the web popup; in duty mode the popup is paused.
 - 🚩 **Duty banner** — while on duty, a frame-wide web banner shows "approvals are on your phone" with a one-click switch back.
+- 📱 **Sidebar duty button** — a "Duty" action beside Settings opens the duty session in one click (creating/waking it when needed), with a live status dot (amber on duty, gray locally).
 - 🗂 **Durable** — the `getUpdates` cursor and the watch mode persist across restarts; backlog is fast-forwarded on the very first run only.
 - 🌐 **English & Chinese** — every Telegram message respects the `language` setting (`zh` | `en`, default `en`).
 - 🌍 **Direct-connection friendly** — connects **directly** by default; configure `proxy` only when Telegram is blocked in your network (see the table below).
@@ -66,7 +70,11 @@ All fields live in the `telegram-duty` settings namespace (the web Settings page
 ## Phone commands
 
 - `/help` — usage
-- `/away` — enter duty mode (approvals go to the phone)
+- `/sessions` — list your workspace sessions (live + offline) with numbered buttons; tap a number to route following messages there
+- `#N message` — send just this one message to session N (numbering from the latest `/sessions`; expires after 30 minutes)
+- `/duty` — back to the default duty-session route
+- `/away` — enter duty mode (approvals go to the phone); warns about approvals the web UI still holds
+- `/unblock` — cancel turns stuck on unanswered web approvals (resend the task afterwards)
 - `/back` — return to local mode
 - `3 approve` / `3 reject` — answer approval #3; with a single pending approval, bare `approve`/`reject` works too.
 
@@ -77,15 +85,16 @@ All fields live in the `telegram-duty` settings namespace (the web Settings page
 - **Do I need a proxy?** No — the plugin connects directly by default. Set `proxy` (e.g. `http://127.0.0.1:7890` for Clash) only when your network blocks Telegram, and keep that proxy running while DSH is up.
 - **Does it cost tokens while idle?** No. The plugin long-polls `getUpdates`; an agent is woken only when a message arrives.
 - **Does it work when my computer is off?** No — the plugin runs together with DSH. Nothing is lost across restarts (the update cursor is persisted to disk).
-- **What arrives on my phone?** Task results, approval requests from any session (in duty mode), and agent questions (`telegram_ask`).
+- **What arrives on my phone?** Task results with instant acks and a live typing indicator, approval requests from any session (in duty mode), agent questions (`telegram_ask`), and proactive agent messages (`telegram_notify`).
 - **Will the bot answer messages in groups?** No — the whitelist only serves your own chat id; everything else is logged and ignored.
+- **Why does `/sessions` not list all my sessions?** It lists your **workspace** sessions exactly like the web sidebar: blank drafts are hidden, and sessions appear live (空闲/忙碌) or offline (离线 — woken on the first targeted message). The internal duty session is never listed; the default route is the duty session anyway.
 - **How do I update the plugin?** Run `dsh plugin --profile web add @luzhengyangtx/dsh-telegram-duty@<version>` (or bump the dependency in your profile's `package.json`).
 
 ## Roadmap
 
 | Status | Item | Tier |
 |--------|------|------|
-| ✅ shipped (v0.3.0) | core loop · approval buttons · `telegram_ask` · duty banner · zh/en | free |
+| ✅ shipped (v0.4.0) | targeted sessions (`/sessions` / `#N` / `/duty`) · instant ack + typing · `telegram_notify` · approval recovery (`/unblock`) · sidebar duty button · bigger banner · zh/en | free |
 | 🚧 planned (v1.x) | voice-message notes, more handy utilities | free |
 | 🔭 preview only | multi-platform (Feishu / WhatsApp / …), team & multi-user mode, cloud hosting, priority support | **pro (future)** |
 
@@ -98,6 +107,7 @@ Need help onboarding, configuration, connecting other platforms, or bespoke feat
 ## Community & Support
 
 - 💬 Telegram group: https://t.me/+w8w7kAnGniRhZTJk
+- 💝 Sponsor on Ko-fi: https://ko-fi.com/luzhengyangtx
 - 💝 Sponsor on 爱发电 (afdian): https://afdian.com/a/luzhengyangtx
 - ⭐ GitHub: https://github.com/luzhengyangtx/dsh-telegram-duty
 

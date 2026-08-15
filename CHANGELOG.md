@@ -3,6 +3,31 @@
 All notable changes to this project are documented here. Stable releases are
 tagged; intermediate development builds on npm are deprecated and point here.
 
+## [0.4.0] - 2026-08-16 — mobile experience release
+
+- 🎯 Targeted sessions: `/sessions` lists the user's workspace sessions (live
+  + offline, matching the web sidebar; blank drafts hidden, duty session
+  excluded) with numbered buttons; tapping a number routes following messages
+  there and confirms in a regular chat message. `#N message` sends a single
+  message to session N (30-minute snapshot), offline targets are resumed
+  automatically, and `/duty` returns to the default route.
+- ⏳ Instant feedback: every task message is acknowledged immediately
+  ("📨 收到，正在生成…") and a `sendChatAction('typing')` loop keeps the
+  phone's typing animation alive until the result; processing errors reply
+  "⚠️ 处理出错" and aborted turns stay silent.
+- 📣 `telegram_notify` tool: any session's agent can proactively push a
+  message to the phone; a global prompt note teaches agents about it and
+  `telegram_ask`.
+- ✅ Approval recovery: `/away` warns when the web UI still holds unanswered
+  approvals, and `/unblock` cancels turns stuck on them (resend afterwards).
+- 📱 Sidebar duty button (`sidebar.footer.action`): one-click open of the duty
+  session with a live status dot; the session is located through a new
+  `telegramDuty` session projection (no settings-wire changes).
+- 🚩 Duty banner enlarged one notch (position/colors unchanged).
+- 🔧 Internal: `SessionDriver` delivers into arbitrary sessions; cold-session
+  listing via the persistence + projection-cache seam; workspace-registry
+  ordering; 40+ new unit tests (119 total).
+
 ## [0.3.1] - 2026-08-16 — documentation & community release
 
 - 📖 Quick Start (≈10 minutes, 5 steps) at the top of both READMEs.

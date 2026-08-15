@@ -19,7 +19,8 @@ export interface Strings {
   approvalRejected: (id: number) => string
   approvalUnknown: (id: number) => string
   approvalAmbiguous: (count: number, first: number) => string
-  dutyError: (error: string) => string
+  ack: string
+  taskError: (error: string) => string
   dutyEmpty: string
   approveButton: string
   rejectButton: string
@@ -27,6 +28,24 @@ export interface Strings {
   askTimeout: (minutes: number) => string
   askAnswered: string
   callbackUnknown: string
+  sessionsTitle: string
+  sessionsEntry: (index: number, title: string, status: string) => string
+  sessionsNone: string
+  statusIdle: string
+  statusRunning: string
+  statusOffline: string
+  dutySessionName: string
+  targeted: (title: string) => string
+  targetAck: string
+  dutyReset: string
+  snapshotExpired: string
+  prefixUnknown: (index: number) => string
+  prefixNeedsText: string
+  sessionOffline: (title: string) => string
+  pendingWebApprovals: (lines: string) => string
+  unblocked: (count: number) => string
+  unblockNothing: string
+  promptNote: string
 }
 
 const zh: Strings = {
@@ -38,6 +57,10 @@ const zh: Strings = {
     '🤖 DSH 值班机器人',
     '',
     '· 直接发消息 → 值班智能体开始干活，完成后回复你',
+    '· /sessions → 列出在线会话，点编号后消息就发给该会话',
+    '· 消息前加 #编号 → 只把这一条发给指定会话（如 #1 帮我看看进度）',
+    '· /duty → 回到默认值班会话路由',
+    '· /unblock → 取消被审批卡住的回合（网页审批未处理时自救）',
     '· /away → 进入值守模式（审批转到手机）',
     '· /back → 回到本地模式（审批恢复网页弹窗）',
     '· 发消息即自动进入值守；回电脑在网页发条消息即自动切回本地',
@@ -46,25 +69,46 @@ const zh: Strings = {
   approvalQuestion: (id, toolName, reason, minutes) =>
     `【审批 #${id}】工具「${toolName}」请求批准${reason !== '' ? `：${reason}` : ''}\n回复 ${id} 同意 / ${id} 拒绝（${minutes} 分钟内有效）`,
   approvalTimeout: (id, minutes) => `【审批 #${id}】已超时（${minutes} 分钟），按拒绝处理。`,
-  approvalAccepted: (id) => `【审批 #${id}】✅ 已同意。`,
-  approvalRejected: (id) => `【审批 #${id}】⛔ 已拒绝。`,
-  approvalUnknown: (id) => `【审批 #${id}】不存在或已超时。`,
+  approvalAccepted: id => `【审批 #${id}】✅ 已同意。`,
+  approvalRejected: id => `【审批 #${id}】⛔ 已拒绝。`,
+  approvalUnknown: id => `【审批 #${id}】不存在或已超时。`,
   approvalAmbiguous: (count, first) => `有 ${count} 条审批待处理，请带编号回复，例如：${first} 同意`,
-  dutyError: (error) => `😵 值班会话处理失败：${error}`,
-  dutyEmpty: '😶 值班会话没有返回内容，请再试一次。',
+  ack: '📨 收到，正在生成…',
+  taskError: error => `⚠️ 处理出错：${error}`,
+  dutyEmpty: '😶 会话没有返回内容，请再试一次。',
   dutyPersona: [
     '你是用户的 Telegram 值班助手，通过手机消息与用户联系。',
     '要求：用简体中文回复，简洁务实；回答前先查看相关项目的进度文件（如工作区下的 task_plan.md、progress.md、HANDOFF.md、CLAUDE.md）再作答；',
     '执行任务时遵循工作区 CLAUDE.md 的用户规则；',
     '拿不准意图先问清楚再动手；需要向用户提问、让用户做选择或确认时，优先使用 telegram_ask 工具（把问题推送到用户手机）；',
+    '需要向用户汇报、提醒或推送消息时，使用 telegram_notify 工具（不等待回复）；',
     '重要操作完成后简短汇报结果。',
   ].join(''),
   approveButton: '✅ 同意',
   rejectButton: '⛔ 拒绝',
   askQuestion: (question, minutes) => `❓ ${question}\n（${minutes} 分钟内回复，点按钮或直接回复选项）`,
-  askTimeout: (minutes) => `❓ 提问已超时（${minutes} 分钟），未收到回答。`,
+  askTimeout: minutes => `❓ 提问已超时（${minutes} 分钟），未收到回答。`,
   askAnswered: '✅ 已选择',
   callbackUnknown: '该按钮已失效或已处理。',
+  sessionsTitle: '🗂 会话列表（点编号定向；💤 离线，首条消息自动唤醒）：',
+  sessionsEntry: (index, title, status) => `[${index}] ${title} · ${status}`,
+  sessionsNone: '当前没有任何会话。先给机器人发一条消息唤醒值班会话，然后再试。',
+  statusIdle: '空闲',
+  statusRunning: '忙碌',
+  statusOffline: '离线',
+  dutySessionName: '值班会话',
+  targeted: title => `🎯 已定向到「${title}」，后续消息都发给它。发送 /duty 回到值班会话。`,
+  targetAck: '✅ 已定向',
+  dutyReset: '🏠 已回到默认值班会话路由。',
+  snapshotExpired: '⏳ 会话列表快照已过期，请重新发送 /sessions。',
+  prefixUnknown: index => `❓ 编号 ${index} 不在最近的会话列表中，请重新发送 /sessions 查看当前列表。`,
+  prefixNeedsText: '请把消息内容写在编号后面，例如：#1 帮我看看进度。',
+  sessionOffline: title => `🛑 会话「${title}」已离线且无法唤醒，请重新发送 /sessions 选择在线会话。`,
+  pendingWebApprovals: lines => `⚠️ 网页上还有待处理的审批（手机无法代答已弹出的审批）：\n${lines}\n回复 /unblock 取消卡住的回合，或回电脑处理。`,
+  unblocked: count => `🧹 已取消 ${count} 个被审批卡住的回合，可以重新发送任务（此时审批会正确推到手机）。`,
+  unblockNothing: '✅ 当前没有被审批卡住的会话。',
+  promptNote: '本环境提供 telegram_notify 工具：把一条消息推送到用户手机（不等待回复），需要汇报、提醒或推送消息时优先使用；'
+    + '需要用户选择或确认时使用 telegram_ask 工具（把问题推到手机并等待回答）。',
 }
 
 const en: Strings = {
@@ -76,6 +120,10 @@ const en: Strings = {
     '🤖 DSH Duty Bot',
     '',
     '· Send a message → the duty agent works on it and replies',
+    '· /sessions → list live sessions; tap a number to route messages there',
+    '· Prefix a message with #N → send just that one to session N (e.g. #1 check my progress)',
+    '· /duty → back to the default duty-session route',
+    '· /unblock → cancel turns stuck on unanswered web approvals',
     '· /away → enter duty mode (approvals go to your phone)',
     '· /back → return to local mode (approvals stay in the web UI)',
     '· Any phone message switches to duty automatically; any web message switches back',
@@ -84,25 +132,46 @@ const en: Strings = {
   approvalQuestion: (id, toolName, reason, minutes) =>
     `[Approval #${id}] Tool "${toolName}" requests approval${reason !== '' ? `: ${reason}` : ''}\nReply ${id} approve / ${id} reject (valid ${minutes} min)`,
   approvalTimeout: (id, minutes) => `[Approval #${id}] timed out (${minutes} min), treated as rejected.`,
-  approvalAccepted: (id) => `[Approval #${id}] ✅ approved.`,
-  approvalRejected: (id) => `[Approval #${id}] ⛔ rejected.`,
-  approvalUnknown: (id) => `[Approval #${id}] does not exist or has timed out.`,
+  approvalAccepted: id => `[Approval #${id}] ✅ approved.`,
+  approvalRejected: id => `[Approval #${id}] ⛔ rejected.`,
+  approvalUnknown: id => `[Approval #${id}] does not exist or has timed out.`,
   approvalAmbiguous: (count, first) => `${count} approvals are pending; include the number, e.g. ${first} approve`,
-  dutyError: (error) => `😵 Duty session failed: ${error}`,
-  dutyEmpty: '😶 The duty session returned no content, please try again.',
+  ack: '📨 Received, generating…',
+  taskError: error => `⚠️ Processing error: ${error}`,
+  dutyEmpty: '😶 The session returned no content, please try again.',
   dutyPersona: [
     'You are the user\'s Telegram duty assistant, reached through phone messages.',
     'Reply in the user\'s language, concisely and practically; before answering, inspect the relevant project progress files (task_plan.md, progress.md, HANDOFF.md, CLAUDE.md) in the workspace;',
     'follow the workspace CLAUDE.md user rules when acting;',
     'when unsure of intent, ask before acting; when you need to ask the user a question, confirm something, or offer choices, prefer the telegram_ask tool (it pushes the question to the user\'s phone);',
+    'to report, remind, or push a message to the user, use the telegram_notify tool (no reply expected);',
     'briefly report after important work completes.',
   ].join(' '),
   approveButton: '✅ Approve',
   rejectButton: '⛔ Reject',
   askQuestion: (question, minutes) => `❓ ${question}\n(Reply within ${minutes} min — tap a button or type an option)`,
-  askTimeout: (minutes) => `❓ The question timed out (${minutes} min) with no answer.`,
+  askTimeout: minutes => `❓ The question timed out (${minutes} min) with no answer.`,
   askAnswered: '✅ Answered',
   callbackUnknown: 'That button is no longer valid.',
+  sessionsTitle: '🗂 Sessions (tap a number to route; 💤 offline, woken on first message):',
+  sessionsEntry: (index, title, status) => `[${index}] ${title} · ${status}`,
+  sessionsNone: 'There are no sessions right now. Send the bot a message first to wake the duty session, then try again.',
+  statusIdle: 'idle',
+  statusRunning: 'busy',
+  statusOffline: 'offline',
+  dutySessionName: 'Duty session',
+  targeted: title => `🎯 Routed to "${title}"; following messages go there. Send /duty to return to the duty session.`,
+  targetAck: '✅ Routed',
+  dutyReset: '🏠 Back to the default duty-session route.',
+  snapshotExpired: '⏳ The session list snapshot expired — please send /sessions again.',
+  prefixUnknown: index => `❓ Number ${index} is not in the recent session list — please send /sessions again.`,
+  prefixNeedsText: 'Put the message after the number, e.g. #1 check my progress.',
+  sessionOffline: title => `🛑 Session "${title}" is offline and could not be woken — please send /sessions and pick a live session.`,
+  pendingWebApprovals: lines => `⚠️ The web UI still holds unanswered approvals (the phone cannot answer an already-shown popup):\n${lines}\nReply /unblock to cancel the stuck turns, or handle them on the computer.`,
+  unblocked: count => `🧹 Cancelled ${count} turn(s) stuck on approvals — resend the task (approvals now go to your phone).`,
+  unblockNothing: '✅ No session is currently stuck on an approval.',
+  promptNote: 'This environment provides a telegram_notify tool: push one message to the user\'s phone (no reply expected); prefer it for reports, reminders, and notifications. '
+    + 'For choices and confirmations use the telegram_ask tool (push a question to the phone and wait).',
 }
 
 /** Resolve the message table for one language. */

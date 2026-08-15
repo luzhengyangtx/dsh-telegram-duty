@@ -54,4 +54,13 @@ describe('summarize', () => {
     ]
     expect(summarize(events, 2)).toEqual({ text: '', error: 'turn ended with reason "max-tokens"' })
   })
+
+  it('marks an aborted turn as cancelled, not an error', () => {
+    const events = [
+      ev(2, 'turn/start', { turn: 1 }),
+      assistant(3, [{ type: 'text', text: 'partial' }]),
+      ev(4, 'turn/end', { turn: 1, reason: { kind: 'aborted', reason: { kind: 'user' } } }),
+    ]
+    expect(summarize(events, 2)).toEqual({ text: 'partial', cancelled: true })
+  })
 })
