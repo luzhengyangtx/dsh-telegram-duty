@@ -10,10 +10,12 @@ import type { ApprovalRequest, ApprovalOutcome } from '@deepseek-ai/dsh-user-app
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { SettingsScope } from '@deepseek-ai/dsh-settings'
 import type { TelegramDutyConfig } from './config.ts'
-import type { TelegramClient, TelegramUpdate } from './telegram.ts'
+import type { InlineKeyboard, TelegramCallbackQuery, TelegramClient, TelegramUpdate } from './telegram.ts'
 import { Poller } from './poller.ts'
 import { DutySession } from './duty.ts'
-import { ApprovalManager, parseApprovalReply } from './approval.ts'
+import { ApprovalManager, parseApprovalCallback, parseApprovalReply } from './approval.ts'
+import { TelegramAskManager, parseAskCallback } from './ask.ts'
+import type { TelegramAskOutcome } from './ask.ts'
 import { chunkText, parseCommand } from './router.ts'
 import { stringsFor } from './i18n.ts'
 import type { Strings } from './i18n.ts'
@@ -33,6 +35,7 @@ export class Gateway {
   private readonly settings: SettingsScope<TelegramDutyConfig>
   private readonly duty: DutySession
   private readonly approvals: ApprovalManager
+  private readonly asks: TelegramAskManager
   private readonly poller: Poller
   private readonly strings: Strings
   private readonly inflight = new Set<Promise<void>>()
@@ -53,7 +56,13 @@ export class Gateway {
     this.approvals = new ApprovalManager({
       timeoutMs: (deps.runtime.approvalTimeoutMinutes ?? 10) * 60_000,
       strings: this.strings,
-      send: (text) => this.sendChunked(text),
+      send: (text, keyboard) => this.sendChunked(text, keyboard),
+      log: (message) => this.ctx.logger.warn('telegram-duty', message),
+    })
+    this.asks = new TelegramAskManager({
+      timeoutMs: (deps.runtime.approvalTimeoutMinutes ?? 10) * 60_000,
+      strings: this.strings,
+      send: (text, keyboard) => this.sendChunked(text, keyboard),
       log: (message) => this.ctx.logger.warn('telegram-duty', message),
     })
     // Decouple message handling from the polling loop: a duty turn can block
@@ -94,11 +103,21 @@ export class Gateway {
 
   async stop(): Promise<void> {
     this.approvals.cancelAll()
+    this.asks.cancelAll()
     await this.poller.stop()
     // Let in-flight message handlers settle (a cancelled approval unwinds
     // the blocked duty turn) before tearing the client down.
     await Promise.allSettled([...this.inflight])
     this.client.close()
+  }
+
+  /** telegram_ask tool body: push a question to the phone and wait. */
+  async askUser(question: string, options: string[], signal?: AbortSignal): Promise<TelegramAskOutcome> {
+    return await this.asks.ask({
+      question,
+      options,
+      ...(signal !== undefined ? { signal } : {}),
+    })
   }
 
   /** approval/request answerer: take over while on duty, else defer to web. */
@@ -121,6 +140,12 @@ export class Gateway {
   }
 
   private async handleUpdate(update: TelegramUpdate): Promise<void> {
+    // 0) button presses (callback queries)
+    const callback = update.callback_query
+    if (callback !== undefined) {
+      await this.handleCallback(callback)
+      return
+    }
     const message = update.message
     if (message === undefined) return
     const text = message.text
@@ -146,6 +171,12 @@ export class Gateway {
     if (parse.kind === 'ambiguous') {
       const first = this.approvals.pendingIds()[0]
       await this.sendChunked(this.strings.approvalAmbiguous(this.approvals.pendingIds().length, first ?? 1))
+      return
+    }
+
+    // 1b) ask answer (exact option-label match)
+    if (this.asks.answerByLabel(trimmed)) {
+      await this.sendChunked(this.strings.askAnswered)
       return
     }
 
@@ -200,12 +231,46 @@ export class Gateway {
     if (notify) await this.sendChunked(mode === 'duty' ? this.strings.dutyOn : this.strings.dutyOff)
   }
 
+  /** Handle one inline-button press. */
+  private async handleCallback(query: TelegramCallbackQuery): Promise<void> {
+    const chatId = query.message?.chat.id
+    if (chatId === undefined || chatId !== this.chatId()) {
+      this.ctx.logger.info('telegram-duty', `ignoring callback from chat ${chatId ?? 'unknown'}`)
+      return
+    }
+    const data = query.data ?? ''
+    let ack: string | undefined
+    const approval = parseApprovalCallback(data)
+    if (approval !== null) {
+      if (this.approvals.answer(approval.id, approval.decision)) {
+        ack = approval.decision === 'allowed-once'
+          ? this.strings.approvalAccepted(approval.id)
+          : this.strings.approvalRejected(approval.id)
+      } else {
+        ack = this.strings.approvalUnknown(approval.id)
+      }
+    } else {
+      const ask = parseAskCallback(data)
+      if (ask !== null) {
+        ack = this.asks.answerByIndex(ask.id, ask.index) ? this.strings.askAnswered : this.strings.callbackUnknown
+      } else {
+        ack = this.strings.callbackUnknown
+      }
+    }
+    try {
+      await this.client.answerCallbackQuery(query.id, ack)
+    } catch (error) {
+      this.ctx.logger.warn('telegram-duty', `answerCallbackQuery failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   /** Send one text, split under Telegram's message limit; never throws. */
-  private async sendChunked(text: string): Promise<void> {
+  private async sendChunked(text: string, keyboard?: InlineKeyboard): Promise<void> {
     const chunks = chunkText(text, this.runtime.replyChunkChars ?? 3800)
-    for (const chunk of chunks) {
+    for (const [index, chunk] of chunks.entries()) {
       try {
-        await this.client.sendMessage(this.chatId(), chunk)
+        // Buttons belong on the first chunk only.
+        await this.client.sendMessage(this.chatId(), chunk, index === 0 && keyboard !== undefined ? { keyboard } : {})
       } catch (error) {
         this.ctx.logger.warn('telegram-duty', `sendMessage failed: ${error instanceof Error ? error.message : String(error)}`)
       }

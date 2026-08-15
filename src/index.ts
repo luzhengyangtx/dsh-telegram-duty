@@ -15,13 +15,15 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import { Config, TELEGRAM_DUTY_NAMESPACE, resolveConfig, type CredentialsFile, type TelegramDutyConfig } from './config.ts'
 import { TelegramClient } from './telegram.ts'
 import { Gateway } from './gateway.ts'
+import { telegramAskTool } from './ask-tool.ts'
 
 export const name = 'telegram-duty'
-export const inject = ['settings', 'agents', 'agentDefaultModel']
+export const inject = ['settings', 'agents', 'agentDefaultModel', 'tools']
 
 /** Schema values win; empty token/chatId fall back to the credentials file. */
 export function resolveRuntime(config: TelegramDutyConfig): TelegramDutyConfig {
@@ -113,6 +115,7 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
   ctx.effect(function* () {
     ctx.on('approval/request', gateway.onApprovalRequest, { prepend: true })
     ctx.on('session/event', gateway.onSessionEvent)
+    ctx.tools.register(telegramAskTool(gateway))
     gateway.start()
     yield async () => {
       await gateway.stop()

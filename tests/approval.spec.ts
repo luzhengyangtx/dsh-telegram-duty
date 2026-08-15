@@ -1,8 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApprovalManager, parseApprovalReply, renderApprovalQuestion } from '../src/approval.ts'
+import { ApprovalManager, parseApprovalCallback, parseApprovalReply, renderApprovalQuestion } from '../src/approval.ts'
 import { stringsFor } from '../src/i18n.ts'
 
 const zh = stringsFor('zh')
+
+describe('parseApprovalCallback', () => {
+  it('parses allow and reject payloads', () => {
+    expect(parseApprovalCallback('appr:7:allow')).toEqual({ id: 7, decision: 'allowed-once' })
+    expect(parseApprovalCallback('appr:2:reject')).toEqual({ id: 2, decision: 'rejected' })
+  })
+
+  it('rejects malformed payloads', () => {
+    expect(parseApprovalCallback('ask:1:0')).toBeNull()
+    expect(parseApprovalCallback('appr:x:allow')).toBeNull()
+    expect(parseApprovalCallback('appr:1:maybe')).toBeNull()
+    expect(parseApprovalCallback('')).toBeNull()
+  })
+})
 
 describe('parseApprovalReply', () => {
   it('parses a numbered allow', () => {
@@ -61,11 +75,18 @@ describe('ApprovalManager', () => {
     vi.useRealTimers()
   })
 
-  it('ask sends the question and registers the pending id', async () => {
+  it('ask sends the question with inline buttons and registers the pending id', async () => {
     const send = vi.fn(async () => undefined)
     const manager = new ApprovalManager({ timeoutMs: 60_000, strings: zh, send })
     const promise = manager.ask({ toolName: 'pwsh', reason: 'why' })
     expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith(
+      expect.stringContaining('审批 #1'),
+      [[
+        { text: '✅ 同意', callback_data: 'appr:1:allow' },
+        { text: '⛔ 拒绝', callback_data: 'appr:1:reject' },
+      ]],
+    )
     expect(manager.pendingIds()).toEqual([1])
     manager.answer(1, 'allowed-once')
     await expect(promise).resolves.toBe('allowed-once')

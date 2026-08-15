@@ -21,6 +21,12 @@ export interface Strings {
   approvalAmbiguous: (count: number, first: number) => string
   dutyError: (error: string) => string
   dutyEmpty: string
+  approveButton: string
+  rejectButton: string
+  askQuestion: (question: string, minutes: number) => string
+  askTimeout: (minutes: number) => string
+  askAnswered: string
+  callbackUnknown: string
 }
 
 const zh: Strings = {
@@ -50,8 +56,15 @@ const zh: Strings = {
     '你是用户的 Telegram 值班助手，通过手机消息与用户联系。',
     '要求：用简体中文回复，简洁务实；回答前先查看相关项目的进度文件（如工作区下的 task_plan.md、progress.md、HANDOFF.md、CLAUDE.md）再作答；',
     '执行任务时遵循工作区 CLAUDE.md 的用户规则；',
-    '拿不准意图先问清楚再动手；重要操作完成后简短汇报结果。',
+    '拿不准意图先问清楚再动手；需要向用户提问、让用户做选择或确认时，优先使用 telegram_ask 工具（把问题推送到用户手机）；',
+    '重要操作完成后简短汇报结果。',
   ].join(''),
+  approveButton: '✅ 同意',
+  rejectButton: '⛔ 拒绝',
+  askQuestion: (question, minutes) => `❓ ${question}\n（${minutes} 分钟内回复，点按钮或直接回复选项）`,
+  askTimeout: (minutes) => `❓ 提问已超时（${minutes} 分钟），未收到回答。`,
+  askAnswered: '✅ 已选择',
+  callbackUnknown: '该按钮已失效或已处理。',
 }
 
 const en: Strings = {
@@ -81,8 +94,15 @@ const en: Strings = {
     'You are the user\'s Telegram duty assistant, reached through phone messages.',
     'Reply in the user\'s language, concisely and practically; before answering, inspect the relevant project progress files (task_plan.md, progress.md, HANDOFF.md, CLAUDE.md) in the workspace;',
     'follow the workspace CLAUDE.md user rules when acting;',
-    'when unsure of intent, ask before acting; briefly report after important work completes.',
+    'when unsure of intent, ask before acting; when you need to ask the user a question, confirm something, or offer choices, prefer the telegram_ask tool (it pushes the question to the user\'s phone);',
+    'briefly report after important work completes.',
   ].join(' '),
+  approveButton: '✅ Approve',
+  rejectButton: '⛔ Reject',
+  askQuestion: (question, minutes) => `❓ ${question}\n(Reply within ${minutes} min — tap a button or type an option)`,
+  askTimeout: (minutes) => `❓ The question timed out (${minutes} min) with no answer.`,
+  askAnswered: '✅ Answered',
+  callbackUnknown: 'That button is no longer valid.',
 }
 
 /** Resolve the message table for one language. */

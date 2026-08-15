@@ -8,7 +8,8 @@ Turn [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) i
 
 - 📱 **Task loop** — Telegram message → dedicated "duty" DSH session (its agent has the standard tool set) → final reply back to Telegram; long replies are split under Telegram's message limit.
 - 🔐 **Whitelist** — only your own chat id is served; other senders are logged and ignored.
-- ✅ **Global approval forwarding** — in *duty* mode, approval requests from **all** sessions go to your phone as numbered questions; reply `3 approve` / `3 reject`. Unanswered approvals time out to *rejected* (fail-closed, 10 minutes by default).
+- ✅ **Global approval forwarding** — in *duty* mode, approval requests from **all** sessions go to your phone with **[✅ Approve] [⛔ Reject] buttons** (tap to answer; typing `3 approve / 3 reject` still works). Unanswered approvals time out to *rejected* (fail-closed, 10 minutes by default).
+- ❓ **telegram_ask tool** — when an agent needs you to choose between options, confirm something, or supply missing information, it pushes the question to your phone with **one button per option**; the duty agent is prompted to prefer it.
 - 🔀 **Duty / local toggle**
   - Enter duty: send any phone message, send `/away`, or flip `watchMode` in the web settings.
   - Back to local: send any message in the web UI, or send `/back`.

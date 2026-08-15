@@ -34,6 +34,19 @@ export interface TelegramMessage {
 export interface TelegramUpdate {
   update_id: number
   message?: TelegramMessage
+  callback_query?: TelegramCallbackQuery
+}
+
+/** One inline keyboard row: text buttons carrying short callback payloads. */
+export type InlineKeyboard = Array<Array<{ text: string; callback_data: string }>>
+
+export interface TelegramCallbackQuery {
+  id: string
+  from?: TelegramUser
+  message?: TelegramMessage
+  chat_instance?: string
+  /** The callback_data attached to the pressed button. */
+  data?: string
 }
 
 export interface TelegramResponse<T> {
@@ -96,20 +109,33 @@ export class TelegramClient {
     return JSON.parse(res.body) as TelegramResponse<T>
   }
 
-  /** Long-poll for new messages; blocks server-side for ~longPollSeconds. */
+  /** Long-poll for new messages and button presses. */
   async getUpdates(offset: number, longPollSeconds: number): Promise<TelegramResponse<TelegramUpdate[]>> {
     return this.call<TelegramUpdate[]>(
       'getUpdates',
-      { offset, timeout: longPollSeconds, allowed_updates: ['message'] },
+      { offset, timeout: longPollSeconds, allowed_updates: ['message', 'callback_query'] },
       (longPollSeconds + 15) * 1000,
     )
   }
 
-  /** Send a text message to a chat. */
-  async sendMessage(chatId: number, text: string, replyToMessageId?: number): Promise<TelegramResponse<TelegramMessage>> {
+  /** Send a text message to a chat, optionally with inline buttons. */
+  async sendMessage(chatId: number, text: string, options: {
+    replyToMessageId?: number
+    keyboard?: InlineKeyboard
+  } = {}): Promise<TelegramResponse<TelegramMessage>> {
     const params: Record<string, unknown> = { chat_id: chatId, text }
-    if (replyToMessageId !== undefined) params.reply_to_message_id = replyToMessageId
+    if (options.replyToMessageId !== undefined) params.reply_to_message_id = options.replyToMessageId
+    if (options.keyboard !== undefined && options.keyboard.length > 0) {
+      params.reply_markup = { inline_keyboard: options.keyboard }
+    }
     return this.call<TelegramMessage>('sendMessage', params, 30_000)
+  }
+
+  /** Acknowledge a button press (keeps the button spinner from hanging). */
+  async answerCallbackQuery(queryId: string, text?: string): Promise<TelegramResponse<boolean>> {
+    const params: Record<string, unknown> = { callback_query_id: queryId }
+    if (text !== undefined && text !== '') params.text = text
+    return this.call<boolean>('answerCallbackQuery', params, 10_000)
   }
 
   /** Identity check (used at startup to validate token + proxy). */

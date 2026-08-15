@@ -8,11 +8,21 @@
 
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import type { Strings } from './i18n.ts'
+import type { InlineKeyboard } from './telegram.ts'
 
 export interface ApprovalQuestion {
   toolName: string
   reason?: string
   signal?: AbortSignal
+}
+
+/** Parse a button payload like `appr:7:allow` into its answer. */
+export function parseApprovalCallback(data: string): { id: number; decision: 'allowed-once' | 'rejected' } | null {
+  const match = /^appr:(\d+):(allow|reject)$/.exec(data)
+  if (match === null) return null
+  const id = Number(match[1])
+  if (!Number.isSafeInteger(id)) return null
+  return { id, decision: match[2] === 'allow' ? 'allowed-once' : 'rejected' }
 }
 
 export interface ApprovalAnswer {
@@ -66,8 +76,8 @@ export interface ApprovalManagerDeps {
   timeoutMs: number
   /** User-facing message table for the configured language. */
   strings: Strings
-  /** Send one Telegram text (best effort; failures must not throw). */
-  send: (text: string) => Promise<void>
+  /** Send one Telegram text with optional inline buttons (best effort). */
+  send: (text: string, keyboard?: InlineKeyboard) => Promise<void>
   log?: (message: string) => void
 }
 
@@ -126,8 +136,12 @@ export class ApprovalManager {
       }
       const minutes = Math.round(this.deps.timeoutMs / 60_000)
       const reason = question.reason?.trim() ?? ''
+      const keyboard: InlineKeyboard = [[
+        { text: this.deps.strings.approveButton, callback_data: `appr:${id}:allow` },
+        { text: this.deps.strings.rejectButton, callback_data: `appr:${id}:reject` },
+      ]]
       void this.deps
-        .send(this.deps.strings.approvalQuestion(id, question.toolName, reason, minutes))
+        .send(this.deps.strings.approvalQuestion(id, question.toolName, reason, minutes), keyboard)
         .catch((error: unknown) => {
           this.deps.log?.(`failed to send approval #${id}: ${error instanceof Error ? error.message : String(error)}`)
         })
