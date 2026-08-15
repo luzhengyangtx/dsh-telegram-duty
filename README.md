@@ -13,8 +13,10 @@ Turn [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) i
   - Enter duty: send any phone message, send `/away`, or flip `watchMode` in the web settings.
   - Back to local: send any message in the web UI, or send `/back`.
   - In local mode approvals stay in the web popup; in duty mode the popup is paused.
+- 🚩 **Duty banner** — while on duty, a frame-wide web banner shows "approvals are on your phone" with a one-click switch back.
 - 🗂 **Durable** — the `getUpdates` cursor and the watch mode persist across restarts; backlog is fast-forwarded on the very first run only.
 - 🌐 **English & Chinese** — every Telegram message respects the `language` setting (`zh` | `en`, default `en`).
+- 🌍 **Direct-connection friendly** — connects **directly** by default; configure `proxy` only when Telegram is blocked in your network (see the table below).
 
 ## Requirements
 
@@ -60,7 +62,7 @@ All fields live in the `telegram-duty` settings namespace (the web Settings page
 |-------|---------|---------|
 | `token` | — | Bot token (marked secret; never shown in settings UIs). Alternatively set `credentialsFile` to a JSON file with `token` / `chat_id` / `proxy`. |
 | `chatId` | — | Whitelisted chat id. |
-| `proxy` | `http://127.0.0.1:7890` | HTTP proxy used for Bot API calls (empty = direct). |
+| `proxy` | (empty) | HTTP proxy used for Bot API calls. **Leave empty for a direct connection — only set a local proxy (e.g. `http://127.0.0.1:7890`) when Telegram is blocked in your network.** |
 | `sessionId` | `telegram-duty` | Stable DSH session id; created on first message. |
 | `dutyCwd` | process cwd | Workspace directory of the duty session. |
 | `approvalTimeoutMinutes` | `10` | Unanswered approvals are rejected after this. |

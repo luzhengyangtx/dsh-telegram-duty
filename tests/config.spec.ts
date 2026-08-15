@@ -23,7 +23,7 @@ describe('config', () => {
     expect(resolved).toMatchObject({
       token: '',
       chatId: 0,
-      proxy: 'http://127.0.0.1:7890',
+      proxy: '',
       sessionId: 'telegram-duty',
       dutyCwd: '',
       dataDir: '',

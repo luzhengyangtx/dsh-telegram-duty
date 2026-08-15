@@ -18,7 +18,7 @@ export interface TelegramDutyConfig {
   token?: string
   /** Allowed Telegram chat id (whitelist). */
   chatId?: number
-  /** HTTP(S) proxy used for Telegram API calls (e.g. Clash). */
+  /** HTTP(S) proxy used for Telegram API calls; empty = direct connection. */
   proxy?: string
   /** Stable DSH session id for the duty session (auto-created on first message). */
   sessionId?: string
@@ -41,7 +41,7 @@ export interface TelegramDutyConfig {
 export const Config: Schema<TelegramDutyConfig> = z.object({
   token: z.string().role('secret').default(''),
   chatId: z.number().default(0),
-  proxy: z.string().default('http://127.0.0.1:7890'),
+  proxy: z.string().default(''),
   sessionId: z.string().default('telegram-duty'),
   dutyCwd: z.string().default(''),
   approvalTimeoutMinutes: z.number().default(10),
