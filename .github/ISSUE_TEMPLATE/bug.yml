@@ -1,0 +1,39 @@
+name: 🐛 Bug 报告 / Bug Report
+description: 报告插件的故障或异常行为
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请确认：已使用最新版本、已搜索过已有 issue、已查看 README 的 FAQ。
+  - type: input
+    id: version
+    attributes:
+      label: 插件版本
+      placeholder: 例如 0.3.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 现象是什么？期望行为是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 按什么步骤操作会出现该问题？
+      placeholder: 1. … 2. …
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: DSH 启动/运行日志中 telegram-duty 相关输出（如有）
+      render: shell
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: 操作系统 / Node 版本 / DSH 版本 / 是否配置代理

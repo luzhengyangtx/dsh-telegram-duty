@@ -1,10 +1,34 @@
 # dsh-telegram-duty（中文说明）
 
-[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com) [![npm](https://img.shields.io/npm/v/@luzhengyangtx/dsh-telegram-duty)](https://www.npmjs.com/package/@luzhengyangtx/dsh-telegram-duty)
 
 把 DeepSeek Harness（DSH）变成随身值班室：手机 Telegram 发消息 → 值班智能体干活 → 结果回复到手机。空闲时零 token（长轮询 `getUpdates`，消息到达才唤醒智能体）。
 
 [English](README.md)
+
+## 快速开始（约 10 分钟）
+
+1. **创建机器人**：在 Telegram 里找 [@BotFather](https://t.me/BotFather)，发送 `/newbot`，按提示取名，拿到 token（形如 `123456:ABC...`）。
+2. **查自己的 chat id**：给 [@userinfobot](https://t.me/userinfobot)（或你刚建的机器人）发任意消息，它会回复你的数字 id。
+3. **安装插件**：在 DeepSeek Harness checkout 目录里执行：
+
+   ```powershell
+   dsh plugin --profile web add @luzhengyangtx/dsh-telegram-duty
+   ```
+
+4. **填写配置**：在 `C:\Users\<你>\.dsh\profiles\web\cordis.patch.yml` 中加上：
+
+   ```yaml
+   - id: telegram-duty
+     config:
+       token: '123456:你的机器人token'   # 第 1 步
+       chatId: 123456789                # 第 2 步（白名单）
+       language: zh                     # 或 en
+   ```
+
+5. **重启** `dsh web`，用手机给你的机器人发条消息——搞定，值班智能体开始回话。
+
+> 进入值守后，网页顶部会出现横幅提示"审批已转到手机"，点一下即可切回本地。
 
 ## 功能
 
@@ -16,33 +40,17 @@
 - 🚩 值守横幅：值守期间网页顶部显示"审批已转到手机"横幅，一键切回本地。
 - 🗂 持久化：消息游标与值守状态跨重启保持；仅首次运行跳过历史积压。
 - 🌐 中英双语：所有手机消息跟随 `language` 配置（`zh` | `en`，默认 `en`）。
-- 🌍 直连友好：默认**直连** Telegram，无需代理（国内网络环境才需配置 `proxy`，见下表提醒）。
-
-## 安装要点
-
-1. 把本包放入 DSH checkout 的 `packages/interaction/telegram-duty`，`pnpm install` 后构建：
-   ```powershell
-   node_modules\.bin\tsc.cmd -b packages/interaction/telegram-duty/tsconfig.json
-   ```
-2. 在 profile 补丁（如 `C:\Users\<你>\.dsh\profiles\web\cordis.patch.yml`）挂载：
-   ```yaml
-   - insert:
-       - id: telegram-duty
-         name: '@luzhengyangtx/dsh-telegram-duty'
-         config:
-           token: '123456:你的机器人token'   # 或用 credentialsFile 指向 {token, chat_id, proxy} 文件
-           chatId: 123456789
-           language: zh
-   ```
-3. 重启 `pnpm dsh web`。
+- 🌍 直连友好：默认**直连** Telegram；仅当网络封锁 Telegram（如中国大陆）时才需配置 `proxy`。
 
 ## 配置（telegram-duty 命名空间）
+
+网页设置页可见可改，也可写在补丁行的 `config:` 下。
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
 | token | — | 机器人 token（secret，界面不展示）；也可用 credentialsFile 提供 |
 | chatId | — | 白名单 chat id |
-| proxy | （空） | Bot API 代理地址。**⚠ 提醒：Telegram 可直连的网络环境请保持留空（默认直连）；仅当网络封锁 Telegram（如中国大陆）时才填本地代理（如 http://127.0.0.1:7890）** |
+| proxy | （空） | Bot API 代理地址。**⚠ Telegram 可直连的网络请保持留空（默认直连）；仅当网络封锁 Telegram（如中国大陆）时才填本地代理（如 Clash 的 http://127.0.0.1:7890），并保持代理软件开着** |
 | sessionId | telegram-duty | 值班会话 id，首次消息自动创建 |
 | dutyCwd | 进程 cwd | 值班会话工作目录 |
 | approvalTimeoutMinutes | 10 | 审批超时（分钟），超时按拒绝 |
@@ -55,6 +63,37 @@
 ## 手机命令
 
 `/help`、`/away`、`/back`；审批点按钮或回复 `3 同意 / 3 拒绝`（仅一条待批时直接回"同意/拒绝"）；提问点选项按钮或直接回复选项文字。
+
+## 常见问题（FAQ）
+
+- **机器人不回消息？** 按顺序排查：① token、chatId 是否填对；② 是否给机器人发过 `/start`（机器人不能主动发起对话）；③ DSH 日志里有没有 telegram-duty 报错；④ 消息是否被当作命令（`/away` 等不产生回复）。
+- **chat id 怎么查？** 给 [@userinfobot](https://t.me/userinfobot) 发任意消息，它会回复你的数字 id。
+- **需要代理吗？** 默认不需要，直连 Telegram。国内网络才填 `proxy`（如 Clash 的 `http://127.0.0.1:7890`），并且 DSH 运行期间代理软件要一直开着。
+- **空闲时耗 token 吗？** 不耗。插件只做长轮询，消息到达才唤醒智能体。
+- **电脑关机还能用吗？** 不能，插件随 DSH 一起运行；但重启不丢消息（游标持久化到磁盘）。
+- **手机上能收到什么？** 任务结果、任意会话的审批请求（值守模式下）、智能体的提问（telegram_ask）。
+- **机器人在群里会回话吗？** 不会，白名单只服务你自己的 chat id，群消息一律忽略。
+- **怎么更新插件？** 执行 `dsh plugin --profile web add @luzhengyangtx/dsh-telegram-duty@<版本号>`，或在 profile 的 `package.json` 里改依赖版本。
+
+## 路线图（Roadmap）
+
+| 状态 | 内容 | 版本性质 |
+|------|------|---------|
+| ✅ 已发布（v0.3.0） | 核心闭环 · 审批按钮 · telegram_ask · 值守横幅 · 中英双语 | 免费 |
+| 🚧 计划中（v1.x） | 语音消息笔记、更多实用小功能 | 免费 |
+| 🔭 仅预告 | 多平台接入（飞书/WhatsApp 等）、团队/多用户模式、云托管、优先支持 | **专业版（未来）** |
+
+永远免费：Telegram 值班、全局审批转发、值守/本地切换、网页横幅、中英双语。**专业版一行只是预告**，目前没有任何专业版代码——它标记的是未来商业版的方向。
+
+## 定制服务
+
+需要接入帮助、配置指导、接入其它平台或定制功能？发邮件到 **dsh-telegram-duty@outlook.com**。常规接入起步价 **500 元/单**（接入 + 配置 + 答疑），复杂功能按工作量单独报价；开工前会先明确交付范围（跑通 + 文档 + 基础答疑）。
+
+## 社区与支持
+
+- 💬 Telegram 用户群：https://t.me/+w8w7kAnGniRhZTJk
+- 💝 爱发电打赏：https://afdian.com/a/luzhengyangtx
+- ⭐ GitHub 仓库：https://github.com/luzhengyangtx/dsh-telegram-duty
 
 ## 开发
 

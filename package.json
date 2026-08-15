@@ -1,7 +1,7 @@
 {
   "name": "@luzhengyangtx/dsh-telegram-duty",
   "description": "Telegram duty gateway for DeepSeek Harness: long-poll Telegram into a dedicated duty session, global approval forwarding while on duty, and a local/duty watch toggle.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "keywords": [
     "deepseek",
     "deepseek-harness",

@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. Stable releases are
 tagged; intermediate development builds on npm are deprecated and point here.
 
+## [0.3.1] - 2026-08-16 — documentation & community release
+
+- 📖 Quick Start (≈10 minutes, 5 steps) at the top of both READMEs.
+- ❔ FAQ (8 entries), incl. proxy guidance for blocked networks and a
+  no-reply troubleshooting order.
+- 🗺 Roadmap table with an explicit free-forever tier and a pro-tier preview
+  (no pro code exists).
+- 🤝 Custom services section (email, starting price, delivery scope).
+- 💝 Community links: Telegram user group, 爱发电 sponsor page; npm badge.
+- 🐛 GitHub issue templates (bug report / feature request).
+
 ## [0.3.0] - 2026-08-16 — first clean public milestone
 
 Complete, verified feature set:
