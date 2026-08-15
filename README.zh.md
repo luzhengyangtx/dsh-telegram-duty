@@ -1,5 +1,7 @@
 # dsh-telegram-duty（中文说明）
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 把 DeepSeek Harness（DSH）变成随身值班室：手机 Telegram 发消息 → 值班智能体干活 → 结果回复到手机。空闲时零 token（长轮询 `getUpdates`，消息到达才唤醒智能体）。
 
 [English](README.md)

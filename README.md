@@ -1,5 +1,7 @@
 # dsh-telegram-duty
 
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
 Turn [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) into your always-on pocket duty office: message a Telegram bot from your phone, the duty agent gets to work, and the result comes back to your phone. Idle cost is zero tokens — the plugin long-polls `getUpdates` and only wakes an agent when a message arrives.
 
 [中文说明](README.zh.md)
