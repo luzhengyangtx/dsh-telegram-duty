@@ -3,6 +3,49 @@
 All notable changes to this project are documented here. Stable releases are
 tagged; intermediate development builds on npm are deprecated and point here.
 
+## [0.5.0] - 2026-09-15 — duty broadcast + sidebar toggle + 0.1.5-rc.2 adaptation
+
+> **Requires DeepSeek Harness ≥ 0.1.2-rc.1** (`session.snapshotEvents()` does not
+> exist in 0.1.1-rc.2 and older). Users pinned to older DSH should stay on
+> `0.4.0`.
+
+- 📣 **Duty-mode turn broadcast** — while on duty, every finished turn of a
+  non-duty session is reported to the phone: `📄 <title> · turn N ended` plus
+  the turn's final reply (full text, split into multiple messages — never
+  truncated), or a `⚠️` line for error/abort/blocked/max-token ends. Phone-initiated
+  turns and the duty session itself are not re-reported (their replies already
+  reach the phone).
+- ✅ **Duty-mode completion notice** — when a session finishes its whole task
+  and its agent goes idle, a `✅ <title> · task complete (N turns, M min)` line
+  is sent (error endings are not "complete").
+- 🎛 **Sidebar duty button is now a toggle** — clicking it while local turns
+  duty on (the phone gets the "duty on" notice), clicking again returns to
+  local; the status dot keeps showing the mode. The duty session itself is
+  opened from the normal sidebar list.
+- 🔧 **Adaptation to DSH 0.1.5-rc.2** — session projection definition uses the
+  current `stateSchema`/`wire` shape; `ApprovalRequest` carries an `agent`
+  field; client session rows use `id`/`displayTitle`/`running`; namespaces use
+  literal strings (`settingsNamespace()` was removed); client bundle injects
+  `@deepseek-ai/dsh-client-ui-renderer`.
+- 🧹 **Lint cleanup** — authoritative type-aware lint is 0 errors for `src`
+  (was 17); 2 `poller.ts` early-returns are kept and waived (concurrent
+  `stop()` flips the flag after an await point).
+- 🧪 133 unit tests passing (14 files).
+
+### Deferred-migration register (policy note 2026-09-09, `snapshotEvents`)
+
+The following 10 production `snapshotEvents()` calls are the pre-existing
+read pattern, moved onto the policy-allowed API because the old synchronous
+`get events()` was removed in DSH. They carry line-scoped
+`typescript/no-deprecated` waivers. Each group has a planned migration — the
+waiver is removed when its group migrates:
+
+| Use | Sites | Migration target |
+| --- | --- | --- |
+| Session title | `gateway.ts:406,452,504`; `turn-watch.ts:146,155,211` (6) | read the title from the `sessionListMetadata` projection instead of scanning events |
+| Pending-approval scan | `gateway.ts:500,519` (2) | subscribe to `approval/asked` / `approval/decided` and keep an incremental pending set (`pending.ts` folding can be reused) |
+| Turn summary / final text | `turn-watch.ts:148`; `duty.ts:230` (2) | accumulate incrementally from the subscribed `session/event` stream at `turn/end` |
+
 ## [0.4.0] - 2026-08-16 — mobile experience release
 
 - 🎯 Targeted sessions: `/sessions` lists the user's workspace sessions (live

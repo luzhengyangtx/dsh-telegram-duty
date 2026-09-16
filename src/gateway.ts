@@ -22,6 +22,7 @@ import type { TelegramAskOutcome } from './ask.ts'
 import { chunkText, isBareTargetPrefix, parseCommand, parseSessionCallback, parseTargetPrefix } from './router.ts'
 import { Targeting, displayTitle } from './targeting.ts'
 import type { SessionItem } from './targeting.ts'
+import { TurnWatch } from './turn-watch.ts'
 import { scanPendingApprovals } from './pending.ts'
 import { stringsFor } from './i18n.ts'
 import type { Strings } from './i18n.ts'
@@ -104,6 +105,8 @@ export class Gateway {
   private readonly strings: Strings
   private readonly inflight = new Set<Promise<void>>()
   private mode: 'local' | 'duty'
+  /** Turn/completion reporter for the other sessions (registered in index.ts). */
+  readonly watch: TurnWatch
 
   constructor(deps: GatewayDeps) {
     this.ctx = deps.ctx
@@ -124,13 +127,21 @@ export class Gateway {
       timeoutMs: (deps.runtime.approvalTimeoutMinutes ?? 10) * 60_000,
       strings: this.strings,
       send: (text, keyboard) => this.sendChunked(text, keyboard),
-      log: message => this.ctx.logger.warn('telegram-duty', message),
+      log: (message) => { this.ctx.logger.warn('telegram-duty', message) },
     })
     this.asks = new TelegramAskManager({
       timeoutMs: (deps.runtime.approvalTimeoutMinutes ?? 10) * 60_000,
       strings: this.strings,
       send: (text, keyboard) => this.sendChunked(text, keyboard),
-      log: message => this.ctx.logger.warn('telegram-duty', message),
+      log: (message) => { this.ctx.logger.warn('telegram-duty', message) },
+    })
+    this.watch = new TurnWatch({
+      ctx: deps.ctx,
+      dutyId: this.dutyId,
+      isDuty: () => this.mode === 'duty',
+      send: text => this.sendChunked(text),
+      strings: this.strings,
+      log: (message) => { this.ctx.logger.warn('telegram-duty', message) },
     })
     // Decouple message handling from the polling loop: a duty turn can block
     // for minutes on a pending Telegram approval, and the poller must keep
@@ -191,6 +202,11 @@ export class Gateway {
     await this.setMode('local', true)
   }
 
+  /** Command body: switch duty on from the web (and notify the phone). */
+  async switchToDuty(): Promise<void> {
+    await this.setMode('duty', true)
+  }
+
   /** Sidebar-button entry point: attach the duty session without a turn. */
   async ensureDutyLive(): Promise<{ error?: string }> {
     return await this.driver.ensureLive()
@@ -229,7 +245,7 @@ export class Gateway {
   onSessionEvent = (session: Session, event: SessionEvent): void => {
     if (this.mode !== 'duty') return
     if (event.type !== 'user/message') return
-    if (event.data.source?.kind !== 'user') return
+    if (event.data.source.kind !== 'user') return
     void this.setMode('local', true)
     this.ctx.logger.info('telegram-duty', `user message in session ${session.id} → local mode`)
   }
@@ -346,7 +362,7 @@ export class Gateway {
       (chatId, action) => this.client.sendChatAction(chatId, action),
       this.chatId(),
       TYPING_INTERVAL_MS,
-      message => this.ctx.logger.warn('telegram-duty', message),
+      (message) => { this.ctx.logger.warn('telegram-duty', message) },
     )
     let outcome: TurnOutcome
     try {
@@ -386,9 +402,12 @@ export class Gateway {
         if (items.length >= MAX_SESSION_LIST) break
         const id = String(agent.id)
         if (id === this.dutyId) continue
+        const live = agent.session
+        // oxlint-disable-next-line typescript/no-deprecated -- Deferred migration of the pre-policy session.events read (title).
+        const events = live.snapshotEvents()
         items.push({
           sessionId: id,
-          title: displayTitle(id, agent.session.events, false, this.strings.dutySessionName),
+          title: displayTitle(id, events, false, this.strings.dutySessionName),
           status: agent.status,
         })
       }
@@ -424,11 +443,14 @@ export class Gateway {
         const live = liveById.get(id)
         if (live !== undefined) {
           // Blank (never-used) live sessions are drafts; the web sidebar
-          // hides them too, so keep the phone list clean.
-          if (live.session.events.length === 0) continue
+          // hides them too, so keep the phone list clean. `seq === 0` is the
+          // API list's own fallback for the blank projection state, so no
+          // history read is needed here.
+          if (live.session.seq === 0) continue
           items.push({
             sessionId: id,
-            title: displayTitle(id, live.session.events, false, this.strings.dutySessionName),
+            // oxlint-disable-next-line typescript/no-deprecated -- Deferred migration of the pre-policy session.events read (title).
+            title: displayTitle(id, live.session.snapshotEvents(), false, this.strings.dutySessionName),
             status: live.status,
           })
           continue
@@ -475,10 +497,12 @@ export class Gateway {
   private async warnPendingWebApprovals(): Promise<void> {
     const lines: string[] = []
     for (const agent of this.ctx.agents.list()) {
-      const pending = scanPendingApprovals(agent.session.events)
+      // oxlint-disable-next-line typescript/no-deprecated -- Deferred migration of the pre-policy session.events read (pending approvals).
+      const pending = scanPendingApprovals(agent.session.snapshotEvents())
       if (pending.length === 0) continue
       const id = String(agent.id)
-      const title = displayTitle(id, agent.session.events, id === this.dutyId, this.strings.dutySessionName)
+      // oxlint-disable-next-line typescript/no-deprecated -- Deferred migration of the pre-policy session.events read (title).
+      const title = displayTitle(id, agent.session.snapshotEvents(), id === this.dutyId, this.strings.dutySessionName)
       for (const item of pending) lines.push(`· 工具「${item.toolName}」（${title}）`)
     }
     if (lines.length > 0) await this.sendChunked(this.strings.pendingWebApprovals(lines.join('\n')))
@@ -492,7 +516,8 @@ export class Gateway {
   private async handleUnblockCommand(): Promise<void> {
     let cancelled = 0
     for (const agent of this.ctx.agents.list()) {
-      if (scanPendingApprovals(agent.session.events).length === 0) continue
+      // oxlint-disable-next-line typescript/no-deprecated -- Deferred migration of the pre-policy session.events read (pending approvals).
+      if (scanPendingApprovals(agent.session.snapshotEvents()).length === 0) continue
       agent.cancel({ kind: 'user' })
       cancelled += 1
       this.ctx.logger.info('telegram-duty', `unblock: cancelled turn of session ${String(agent.id)}`)
@@ -564,7 +589,7 @@ export class Gateway {
     }
     try {
       // answerCallbackQuery toasts cap at 200 characters.
-      await this.client.answerCallbackQuery(query.id, ack === undefined ? undefined : ack.slice(0, 190))
+      await this.client.answerCallbackQuery(query.id, ack.slice(0, 190))
     } catch (error) {
       this.ctx.logger.warn('telegram-duty', `answerCallbackQuery failed: ${error instanceof Error ? error.message : String(error)}`)
     }

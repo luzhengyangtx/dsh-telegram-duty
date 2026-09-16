@@ -32,7 +32,7 @@ export function telegramNotifyTool(gateway: Gateway) {
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
     },
     async execute(args) {
-      const text = String(args.message).trim()
+      const text = args.message.trim()
       if (text === '') throw new Error('telegram_notify: message must not be empty')
       await gateway.notifyPhone(text)
       return { sent: true }

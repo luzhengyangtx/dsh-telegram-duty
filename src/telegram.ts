@@ -102,7 +102,9 @@ export class TelegramClient {
     const qs = new URLSearchParams()
     for (const [key, value] of Object.entries(params)) {
       if (value === undefined || value === null) continue
-      qs.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
+      // Structural values serialize as JSON; primitives keep their own string
+      // form (explicit branches avoid Object's default "[object Object]").
+      qs.set(key, typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'boolean' ? String(value) : JSON.stringify(value))
     }
     const url = `https://api.telegram.org/bot${this.token}/${method}?${qs.toString()}`
     const res = await request(url, this.agent, timeoutMs)

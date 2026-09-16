@@ -6,6 +6,10 @@
 
 [English](README.md)
 
+## 版本要求
+
+> **要求 DeepSeek Harness ≥ 0.1.2-rc.1。** v0.5.0 起插件通过 `session.snapshotEvents()` 读取会话历史，该接口在 0.1.1-rc.2 及更早版本中不存在（于 `dsh-v0.1.2-rc.1` 引入）。如果您仍在使用 **0.1.1-rc.2 或更早版本，请继续使用 npm `0.4.0`**——最新版在那上面无法加载。
+
 ## 快速开始（约 10 分钟）
 
 1. **创建机器人**：在 Telegram 里找 [@BotFather](https://t.me/BotFather)，发送 `/newbot`，按提示取名，拿到 token（形如 `123456:ABC...`）。

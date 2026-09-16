@@ -5,14 +5,14 @@
  * web UI locale.
  */
 
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DutyWatchState } from './settings-store.ts'
 
 /** Banner locale dictionary declared into the shared LocaleNamespaceMap. */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    'telegram-duty.banner': 'title' | 'action' | 'sidebarDuty' | 'sidebarError'
+    'telegram-duty.banner': 'title' | 'action' | 'sidebarDuty'
   }
 }
 

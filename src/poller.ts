@@ -79,6 +79,7 @@ export class Poller {
           for (const update of updates) this.nextOffset = Math.max(this.nextOffset, update.update_id + 1)
           this.firstStart = false
           writeJson(this.offsetFile, { nextOffset: this.nextOffset })
+          // oxlint-disable-next-line typescript/no-unnecessary-condition -- Read after an await point: stop() flips this flag concurrently.
           if (this.stopped) return
           if (minInterval > 0) await sleep(minInterval)
           continue
@@ -95,6 +96,7 @@ export class Poller {
           }
           writeJson(this.offsetFile, { nextOffset: this.nextOffset })
         }
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- Read after an await point: stop() flips this flag concurrently.
         if (this.stopped) return
         if (minInterval > 0) await sleep(minInterval)
       } catch (error) {

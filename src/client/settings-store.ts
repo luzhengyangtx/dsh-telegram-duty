@@ -8,7 +8,7 @@
 
 import {
   createSnapshotStore, type SnapshotStore,
-} from '@deepseek-ai/dsh-client-runtime/client'
+} from '@deepseek-ai/dsh-client-store'
 
 export const DUTY_STATE_ON_NS = 'telegram-duty-on'
 export const DUTY_STATE_OFF_NS = 'telegram-duty-off'

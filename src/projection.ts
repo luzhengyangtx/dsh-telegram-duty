@@ -17,6 +17,9 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
     /** True once a session received a phone-injected message (the duty session). */
     telegramDuty?: boolean
   }
+  interface SessionProjectionStateMap {
+    telegramDuty: boolean
+  }
 }
 
 /** True when the event is a phone-injected user message into the duty session. */
@@ -31,16 +34,21 @@ export function isDutySourceEvent(event: SessionEvent): boolean {
  * duty-sourced message, it stays marked. Targeted deliveries use a different
  * source plugin name, so they never mark other sessions.
  */
-export function telegramDutyProjection(): ProjectionDefinition<'telegramDuty', boolean> {
+export function telegramDutyProjection(): ProjectionDefinition<'telegramDuty', boolean> & {
+  wire: NonNullable<ProjectionDefinition<'telegramDuty', boolean>['wire']>
+} {
   return {
     key: 'telegramDuty',
-    schema: z.boolean(),
+    stateSchema: z.boolean(),
     init: () => false,
     apply: (state, event) => {
       if (state) return state
       return isDutySourceEvent(event) ? true : state
     },
-    view: state => state,
+    wire: {
+      viewSchema: z.boolean().optional(),
+      view: state => state,
+    },
     stateVersion: 1,
   }
 }

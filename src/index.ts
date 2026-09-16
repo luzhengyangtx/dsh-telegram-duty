@@ -83,7 +83,7 @@ export async function apply(ctx: Context, config: TelegramDutyConfig = {}): Prom
   }
 }
 
-async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
+function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
   const settings = ctx.settings.register(TELEGRAM_DUTY_NAMESPACE, Config, {
     base: config,
     applies: 'live',
@@ -126,6 +126,9 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
   ctx.effect(function* () {
     ctx.on('approval/request', gateway.onApprovalRequest, { prepend: true })
     ctx.on('session/event', gateway.onSessionEvent)
+    ctx.on('session/event', gateway.watch.onSessionEvent)
+    ctx.on('agent/status', gateway.watch.onAgentStatus)
+    ctx.on('agent/disposed', gateway.watch.onAgentDisposed)
     ctx.tools.register(telegramAskTool(gateway))
     ctx.tools.register(telegramNotifyTool(gateway))
     ctx.commands.register({
@@ -147,6 +150,15 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
       },
     })
     ctx.commands.register({
+      name: 'duty-mode-duty',
+      description: 'Switch the Telegram duty on (web sidebar button)',
+      recordInput: false,
+      handler: async () => {
+        await gateway.switchToDuty()
+        return { kind: 'success' }
+      },
+    })
+    ctx.commands.register({
       name: 'duty-session',
       description: 'Attach the Telegram duty session (sidebar button fallback)',
       recordInput: false,
@@ -160,6 +172,7 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
     })
     gateway.start()
     yield async () => {
+      gateway.watch.dispose()
       await gateway.stop()
     }
   }, 'telegram-duty lifecycle')
@@ -195,4 +208,7 @@ async function mount(ctx: Context, config: TelegramDutyConfig): Promise<void> {
       ctx.logger.warn('telegram-duty', `getMe failed: ${error instanceof Error ? error.message : String(error)}`)
     },
   )
+  // Non-async body: mount() never awaits, so resolve immediately and let the
+  // background getMe() validation settle on its own.
+  return Promise.resolve()
 }

@@ -45,7 +45,7 @@ export function telegramAskTool(gateway: Gateway) {
       if (!Array.isArray(args.options) || args.options.length < 2 || args.options.length > 4) {
         throw new Error('telegram_ask requires 2 to 4 options')
       }
-      const outcome = await gateway.askUser(String(args.question), args.options.map(String), exec.signal)
+      const outcome = await gateway.askUser(args.question, args.options, exec.signal)
       return {
         answered: outcome.answered,
         ...(outcome.answer !== undefined ? { answer: outcome.answer } : {}),

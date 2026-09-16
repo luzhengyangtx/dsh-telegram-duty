@@ -5,6 +5,7 @@ import type { InlineKeyboard } from '../src/telegram.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import { stringsFor } from '../src/i18n.ts'
 
 const strings = stringsFor('zh')
@@ -13,10 +14,15 @@ function ev(seq: number, type: string, data: unknown): SessionEvent {
   return { seq, type, data } as unknown as SessionEvent
 }
 
+/** Session fake exposing the reader the production code uses (the live log). */
+function sessionOf(events: SessionEvent[], seq = 1): FakeAgent['session'] {
+  return { seq, events, snapshotEvents: () => events }
+}
+
 interface FakeAgent {
   id: string
   status: 'idle' | 'running'
-  session: { seq: number; events: SessionEvent[] }
+  session: { seq: number; events: SessionEvent[]; snapshotEvents: () => SessionEvent[] }
   whenIdle: ReturnType<typeof vi.fn>
   followup: ReturnType<typeof vi.fn>
   cancel: ReturnType<typeof vi.fn>
@@ -32,7 +38,7 @@ function agentOf(id: string, reply: string, extra: Partial<FakeAgent> = {}): Fak
   return {
     id,
     status: 'idle',
-    session: { seq: 1, events },
+    session: sessionOf(events),
     whenIdle: vi.fn(async () => undefined),
     followup: vi.fn(),
     cancel: vi.fn(),
@@ -66,7 +72,7 @@ function fakeClient(): TelegramClient & FakeClient {
       return { ok: true }
     }),
     answerCallbackQuery: vi.fn(async (queryId: string, text?: string) => {
-      client.callbacks.push({ queryId, text })
+      client.callbacks.push(text === undefined ? { queryId } : { queryId, text })
       return { ok: true }
     }),
     getUpdates: vi.fn(),
@@ -168,7 +174,7 @@ describe('Gateway task routing', () => {
   it('does not ack approval replies and settles the pending approval', async () => {
     const { gateway, client } = makeGateway({ watchMode: 'duty' })
     const answer = gateway.onApprovalRequest(
-      { toolName: 'pwsh', reason: 'install something' },
+      { agent: agentOf('duty', 'x') as unknown as Agent, toolName: 'pwsh', reason: 'install something' },
       async () => 'rejected' as ApprovalOutcome,
     )
     await vi.advanceTimersByTimeAsync(0)
@@ -204,13 +210,10 @@ describe('Gateway task routing', () => {
 
   it('replies with the processing-error message on a failed turn', async () => {
     const duty = agentOf('duty', '', {
-      session: {
-        seq: 1,
-        events: [
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'turn/end', { turn: 1, reason: { kind: 'error', error: { code: 'E_MODEL', message: 'boom' } } }),
-        ],
-      },
+      session: sessionOf([
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'turn/end', { turn: 1, reason: { kind: 'error', error: { code: 'E_MODEL', message: 'boom' } } }),
+      ]),
     })
     const { gateway, client } = makeGateway({ roots: () => [duty], get: id => (id === 'duty' ? duty : undefined) })
     await gateway.handleUpdate(textUpdate(1, '会失败的'))
@@ -236,26 +239,20 @@ describe('Gateway targeted routing', () => {
     const duty = agentOf('duty', '值班回复')
     const second = agentOf('s2', '进度回复', {
       status: 'running',
-      session: {
-        seq: 1,
-        events: [
-          ev(0, 'session/title', { title: '进度项目' }),
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '进度回复' }] } }),
-          ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
-        ],
-      },
+      session: sessionOf([
+        ev(0, 'session/title', { title: '进度项目' }),
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '进度回复' }] } }),
+        ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+      ]),
     })
     const third = agentOf('s3', '其他回复', {
-      session: {
-        seq: 1,
-        events: [
-          ev(0, 'session/title', { title: '其他项目' }),
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '其他回复' }] } }),
-          ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
-        ],
-      },
+      session: sessionOf([
+        ev(0, 'session/title', { title: '其他项目' }),
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '其他回复' }] } }),
+        ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+      ]),
     })
     const { gateway, client } = makeGateway({
       roots: () => [duty, second, third],
@@ -352,15 +349,12 @@ describe('Gateway targeted routing', () => {
   it('reports an offline target that cannot be resumed', async () => {
     const duty = agentOf('duty', '值班回复')
     const ghost = agentOf('s2', '进度回复', {
-      session: {
-        seq: 1,
-        events: [
-          ev(0, 'session/title', { title: '进度项目' }),
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '进度回复' }] } }),
-          ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
-        ],
-      },
+      session: sessionOf([
+        ev(0, 'session/title', { title: '进度项目' }),
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '进度回复' }] } }),
+        ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+      ]),
     })
     const { gateway, client } = makeGateway({
       roots: () => [duty, ghost],
@@ -387,13 +381,10 @@ describe('Gateway targeted routing', () => {
 
   it('an aborted turn stays silent (no bogus processing error)', async () => {
     const duty = agentOf('duty', '', {
-      session: {
-        seq: 1,
-        events: [
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'turn/end', { turn: 1, reason: { kind: 'aborted', reason: { kind: 'user' } } }),
-        ],
-      },
+      session: sessionOf([
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'turn/end', { turn: 1, reason: { kind: 'aborted', reason: { kind: 'user' } } }),
+      ]),
     })
     const { gateway, client } = makeGateway({ roots: () => [duty], get: id => (id === 'duty' ? duty : undefined) })
     await gateway.handleUpdate(textUpdate(1, '会取消的任务'))
@@ -465,17 +456,14 @@ describe('Gateway cold-session listing', () => {
 
   it('/sessions skips blank live sessions (drafts)', async () => {
     const duty = agentOf('duty', '值班回复')
-    const draft = agentOf('draft1', '', { session: { seq: 0, events: [] } })
+    const draft = agentOf('draft1', '', { session: { seq: 0, events: [], snapshotEvents: () => [] } })
     const real = agentOf('real1', '回复', {
-      session: {
-        seq: 1,
-        events: [
-          ev(0, 'session/title', { title: '真正会话' }),
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '回复' }] } }),
-          ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
-        ],
-      },
+      session: sessionOf([
+        ev(0, 'session/title', { title: '真正会话' }),
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '回复' }] } }),
+        ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+      ]),
     })
     const { gateway, client } = makeGateway({
       roots: () => [duty, draft, real],
@@ -526,15 +514,12 @@ describe('Gateway web-approval recovery', () => {
 
   function stuckAgent(): FakeAgent {
     return agentOf('duty', '回复', {
-      session: {
-        seq: 1,
-        events: [
-          ev(0, 'approval/asked', { id: 'a1', toolName: 'pwsh', reason: 'install' }),
-          ev(1, 'turn/start', { turn: 1 }),
-          ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '回复' }] } }),
-          ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
-        ],
-      },
+      session: sessionOf([
+        ev(0, 'approval/asked', { id: 'a1', toolName: 'pwsh', reason: 'install' }),
+        ev(1, 'turn/start', { turn: 1 }),
+        ev(2, 'assistant/message', { turn: 1, step: 1, message: { content: [{ type: 'text', text: '回复' }] } }),
+        ev(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+      ]),
     })
   }
 

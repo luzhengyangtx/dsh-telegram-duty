@@ -45,6 +45,14 @@ export interface Strings {
   pendingWebApprovals: (lines: string) => string
   unblocked: (count: number) => string
   unblockNothing: string
+  turnHeader: (title: string, turn: number) => string
+  turnFailed: (title: string, turn: number, detail: string) => string
+  turnDone: (title: string, turns: number, minutes: number) => string
+  reasonAborted: string
+  reasonBlocked: string
+  reasonMaxTokens: string
+  reasonInterrupted: string
+  reasonError: (code: string, message: string) => string
   promptNote: string
 }
 
@@ -107,6 +115,14 @@ const zh: Strings = {
   pendingWebApprovals: lines => `⚠️ 网页上还有待处理的审批（手机无法代答已弹出的审批）：\n${lines}\n回复 /unblock 取消卡住的回合，或回电脑处理。`,
   unblocked: count => `🧹 已取消 ${count} 个被审批卡住的回合，可以重新发送任务（此时审批会正确推到手机）。`,
   unblockNothing: '✅ 当前没有被审批卡住的会话。',
+  turnHeader: (title, turn) => `📄 ${title} · 第 ${turn} 轮结束`,
+  turnFailed: (title, turn, detail) => `⚠️ ${title} · 第 ${turn} 轮结束：${detail}`,
+  turnDone: (title, turns, minutes) => `✅ ${title} · 任务完成（共 ${turns} 轮，用时 ${minutes} 分钟）`,
+  reasonAborted: '被取消',
+  reasonBlocked: '阻塞',
+  reasonMaxTokens: '超出输出上限',
+  reasonInterrupted: '意外中断',
+  reasonError: (code, message) => `出错（${code}：${message}）`,
   promptNote: '本环境提供 telegram_notify 工具：把一条消息推送到用户手机（不等待回复），需要汇报、提醒或推送消息时优先使用；'
     + '需要用户选择或确认时使用 telegram_ask 工具（把问题推到手机并等待回答）。',
 }
@@ -170,6 +186,14 @@ const en: Strings = {
   pendingWebApprovals: lines => `⚠️ The web UI still holds unanswered approvals (the phone cannot answer an already-shown popup):\n${lines}\nReply /unblock to cancel the stuck turns, or handle them on the computer.`,
   unblocked: count => `🧹 Cancelled ${count} turn(s) stuck on approvals — resend the task (approvals now go to your phone).`,
   unblockNothing: '✅ No session is currently stuck on an approval.',
+  turnHeader: (title, turn) => `📄 ${title} · turn ${turn} ended`,
+  turnFailed: (title, turn, detail) => `⚠️ ${title} · turn ${turn} ended: ${detail}`,
+  turnDone: (title, turns, minutes) => `✅ ${title} · task complete (${turns} turns, ${minutes} min)`,
+  reasonAborted: 'cancelled',
+  reasonBlocked: 'blocked',
+  reasonMaxTokens: 'output limit reached',
+  reasonInterrupted: 'interrupted',
+  reasonError: (code, message) => `error (${code}: ${message})`,
   promptNote: 'This environment provides a telegram_notify tool: push one message to the user\'s phone (no reply expected); prefer it for reports, reminders, and notifications. '
     + 'For choices and confirmations use the telegram_ask tool (push a question to the phone and wait).',
 }

@@ -11,8 +11,14 @@
     {
       "path": "../../../vendor/cordis"
     },
-    {
-      "path": "../../client/runtime"
+   {
+  "path": "../../client/store"
+    },
+   {
+  "path": "../../client/ui-renderer"
+    },
+   {
+  "path": "../../api/session-controller/tsconfig.client.json"
     },
     {
       "path": "../../client/ui-slots"

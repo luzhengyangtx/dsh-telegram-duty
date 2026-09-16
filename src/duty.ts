@@ -184,7 +184,7 @@ export class SessionDriver {
     }
 
     const live = agents.get(SessionId(sessionId))
-    if (live !== undefined) return { agent: live, dispose: async () => undefined }
+    if (live !== undefined) return { agent: live, dispose: () => Promise.resolve() }
 
     let handle
     try {
@@ -227,7 +227,8 @@ export class SessionDriver {
         source: { kind: 'plugin', plugin: isDuty ? DUTY_SOURCE_PLUGIN : TARGETED_SOURCE_PLUGIN },
       }))
       await agent.whenIdle()
-      return summarize(agent.session.events, firstSeq)
+      // oxlint-disable-next-line typescript/no-deprecated -- Deferred migration of the pre-policy session.events read (turn summary).
+      return summarize(agent.session.snapshotEvents(), firstSeq)
     } finally {
       // Release our own handle when we created one; a live foreign agent stays.
       await dispose()

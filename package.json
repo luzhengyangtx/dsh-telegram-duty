@@ -1,7 +1,7 @@
 {
   "name": "@luzhengyangtx/dsh-telegram-duty",
   "description": "Telegram duty gateway for DeepSeek Harness: long-poll Telegram into a dedicated duty session, global approval forwarding while on duty, and a local/duty watch toggle.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "keywords": [
     "deepseek",
     "deepseek-harness",
@@ -62,8 +62,9 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-connection",
-        "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-api-remotes"
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-ui-renderer"
       ],
       "platform": "web"
     }
@@ -74,7 +75,6 @@
     "@deepseek-ai/dsh-agent-presets": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
-    "@deepseek-ai/dsh-client-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
@@ -83,7 +83,9 @@
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/dsh-user-approval": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:^",
+    "@deepseek-ai/dsh-client-store": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
@@ -96,8 +98,6 @@
     "@deepseek-ai/dsh-agent-presets": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
-    "@deepseek-ai/dsh-client-runtime": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-session-projection": "workspace:^",
@@ -106,6 +106,9 @@
     "@deepseek-ai/dsh-tools": "workspace:^",
     "@deepseek-ai/dsh-user-approval": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@types/react": "~18.3.1"
+    "@types/react": "~18.3.1",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:^",
+    "@deepseek-ai/dsh-client-store": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-renderer": "workspace:^"
   }
 }

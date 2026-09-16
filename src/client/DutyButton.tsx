@@ -1,11 +1,12 @@
 /**
- * Sidebar duty button: an action beside Settings (the official
- * `sidebar.footer.action` slot) that opens the duty session with one click,
- * with a status dot mirroring the watch mode (the same state-marker channel
- * the banner uses). Folded to the rail, only the icon + dot remain.
+ * Sidebar duty toggle: an action beside Settings (the official
+ * `sidebar.footer.action` slot) that switches the duty mode — click turns
+ * duty on while local and back to local while on duty — with a status dot
+ * mirroring the watch mode (the same state-marker channel the banner uses).
+ * Folded to the rail, only the icon + dot remain.
  */
 
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DutyWatchState } from './settings-store.ts'
 import { DOT_COLORS, dutyDotState } from './duty-button.ts'
@@ -15,11 +16,9 @@ export interface DutyButtonInjected {
   hooks: {
     /** Duty-watch snapshot bound by the renderer as useDuty. */
     duty: SnapshotStore<DutyWatchState>
-    /** Open-failure flash bound by the renderer as useFailed. */
-    failed: SnapshotStore<{ failed: boolean }>
   }
-  /** Open the duty session (creating/resuming it on the host when needed). */
-  open: () => void
+  /** Toggle the duty mode: on while local, off while on duty. */
+  toggle: () => void
 }
 
 /** Full component props. */
@@ -59,22 +58,21 @@ const dotStyle: React.CSSProperties = {
 }
 
 /**
- * Render the duty action: icon + "值班" label when wide, status dot always.
+ * Render the duty toggle: icon + "值班" label when wide, status dot always.
  * @param props - composed slot props.
  */
-export function DutyButton({ wide, useDuty, useFailed, open, t }: DutyButtonProps) {
+export function DutyButton({ wide, useDuty, toggle, t }: DutyButtonProps) {
   const state = useDuty(snapshot => snapshot)
-  const failedState = useFailed(snapshot => snapshot)
   const dot = dutyDotState(state.mode, state.status === 'ready')
-  const color = failedState.failed ? DOT_COLORS.error : DOT_COLORS[dot]
+  const color = DOT_COLORS[dot]
 
   return (
     <button
       type="button"
-      style={failedState.failed ? { ...rowStyle, borderColor: '#ef4444' } : rowStyle}
-      title={failedState.failed ? t('sidebarError') : t('sidebarDuty')}
+      style={rowStyle}
+      title={t('sidebarDuty')}
       onClick={() => {
-        open()
+        toggle()
       }}
     >
       <span style={iconStyle}>📱</span>

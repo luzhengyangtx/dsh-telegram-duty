@@ -6,6 +6,10 @@ Turn [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) i
 
 [中文说明](README.zh.md)
 
+## Requirements
+
+> **DeepSeek Harness ≥ 0.1.2-rc.1 is required.** Since v0.5.0 the plugin reads session history through the `session.snapshotEvents()` API, which does not exist in 0.1.1-rc.2 and older (it was introduced in `dsh-v0.1.2-rc.1`). If you are on **0.1.1-rc.2 or older, stay on npm `0.4.0`** — the latest version will fail to load there.
+
 ## Quick Start (≈10 minutes)
 
 1. **Create a bot** — chat with [@BotFather](https://t.me/BotFather), send `/newbot`, and copy the token (looks like `123456:ABC...`).
